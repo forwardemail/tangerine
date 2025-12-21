@@ -535,13 +535,13 @@ We have written extensive benchmarks to show that :tangerine: Tangerine is as fa
 
 **Last Updated:** 2025-12-21
 
-| Node Version | Platform | Arch | Timestamp |
-|--------------|----------|------|----------|
-| v18.20.8 | linux | x64 | Dec 21, 2025 |
-| v20.19.6 | linux | x64 | Dec 21, 2025 |
-| v22.21.1 | linux | x64 | Dec 21, 2025 |
-| v24.12.0 | linux | x64 | Dec 21, 2025 |
-| v25.2.1 | linux | x64 | Dec 21, 2025 |
+| Node Version | Platform | Arch | Timestamp    |
+| ------------ | -------- | ---- | ------------ |
+| v18.20.8     | linux    | x64  | Dec 21, 2025 |
+| v20.19.6     | linux    | x64  | Dec 21, 2025 |
+| v22.21.1     | linux    | x64  | Dec 21, 2025 |
+| v24.12.0     | linux    | x64  | Dec 21, 2025 |
+| v25.2.1      | linux    | x64  | Dec 21, 2025 |
 
 <details>
 <summary>Click to expand detailed benchmark results</summary>
@@ -758,7 +758,6 @@ Fastest without caching is: resolver.reverse without caching, dns.promises.rever
 ```
 
 </details>
-
 
 <!-- BENCHMARK_RESULTS_END -->
 
