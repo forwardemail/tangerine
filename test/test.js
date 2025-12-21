@@ -1280,3 +1280,155 @@ test('spoofPacket', async (t) => {
         ];
   t.deepEqual(mxDns, expectedMx);
 });
+
+// Test HTTPS record resolution (Issue #10)
+test('resolve HTTPS records for cloudflare.com', async (t) => {
+  const tangerine = new Tangerine();
+  const result = await tangerine.resolve('cloudflare.com', 'HTTPS');
+  t.true(Array.isArray(result), 'HTTPS records should be an array');
+  t.true(result.length > 0, 'Should return at least one HTTPS record');
+  // Verify the structure of HTTPS records
+  for (const record of result) {
+    t.is(typeof record.name, 'string', 'HTTPS record should have a name');
+    t.is(typeof record.ttl, 'number', 'HTTPS record should have a ttl');
+    t.is(record.type, 'HTTPS', 'HTTPS record should have type HTTPS');
+  }
+});
+
+// Test SVCB record resolution (Issue #10)
+test('resolve SVCB records', async (t) => {
+  const tangerine = new Tangerine();
+  // SVCB records are less common, so we test that the method doesn't throw
+  // and returns an array (even if empty with ENODATA)
+  try {
+    const result = await tangerine.resolve('_dns.resolver.arpa', 'SVCB');
+    t.true(Array.isArray(result), 'SVCB records should be an array');
+    // If we got results, verify the structure
+    for (const record of result) {
+      t.is(typeof record.name, 'string', 'SVCB record should have a name');
+      t.is(typeof record.ttl, 'number', 'SVCB record should have a ttl');
+      t.is(record.type, 'SVCB', 'SVCB record should have type SVCB');
+    }
+  } catch (err) {
+    // ENODATA is acceptable if no SVCB records exist
+    t.true(
+      err.code === dns.NODATA || err.code === dns.NOTFOUND,
+      'Should return ENODATA or ENOTFOUND if no SVCB records exist'
+    );
+  }
+});
+
+// Test spoofPacket default TTL is 5 minutes (Issue #15)
+test('spoofPacket default expires is 5 minutes (300000ms)', (t) => {
+  const tangerine = new Tangerine();
+  const before = Date.now();
+  const packet = tangerine.spoofPacket('example.com', 'A', ['1.2.3.4']);
+  const after = Date.now();
+
+  // The expires should be approximately 5 minutes (300000ms) from now
+  const expectedMin = before + 300000;
+  const expectedMax = after + 300000;
+
+  t.true(
+    packet.expires >= expectedMin && packet.expires <= expectedMax,
+    `spoofPacket expires should be ~5 minutes from now (got ${packet.expires - before}ms)`
+  );
+});
+
+// Test spoofPacket with custom expires
+test('spoofPacket with custom expires', (t) => {
+  const tangerine = new Tangerine();
+  const before = Date.now();
+  const customExpires = 60000; // 1 minute
+  const packet = tangerine.spoofPacket(
+    'example.com',
+    'A',
+    ['1.2.3.4'],
+    false,
+    customExpires
+  );
+  const after = Date.now();
+
+  const expectedMin = before + customExpires;
+  const expectedMax = after + customExpires;
+
+  t.true(
+    packet.expires >= expectedMin && packet.expires <= expectedMax,
+    `spoofPacket expires should be ~1 minute from now with custom expires`
+  );
+});
+
+// Test spoofPacket with Date object for expires
+test('spoofPacket with Date object for expires', (t) => {
+  const tangerine = new Tangerine();
+  const futureDate = new Date(Date.now() + 600000); // 10 minutes from now
+  const packet = tangerine.spoofPacket(
+    'example.com',
+    'A',
+    ['1.2.3.4'],
+    false,
+    futureDate
+  );
+
+  t.is(
+    packet.expires,
+    futureDate.getTime(),
+    'spoofPacket expires should match the Date object'
+  );
+});
+
+// Test TypeScript types are exported correctly
+test('TypeScript types file exists and is valid', (t) => {
+  const typesPath = require('node:path').join(__dirname, '..', 'index.d.ts');
+  t.true(fs.existsSync(typesPath), 'index.d.ts should exist');
+
+  const typesContent = fs.readFileSync(typesPath, 'utf8');
+
+  // Verify key type definitions exist
+  t.true(
+    typesContent.includes('TangerineOptions'),
+    'Should export TangerineOptions type'
+  );
+  t.true(
+    typesContent.includes('type DnsRecordType'),
+    'Should export DnsRecordType type'
+  );
+  t.true(
+    typesContent.includes('HttpsRecord'),
+    'Should export HttpsRecord type'
+  );
+  t.true(typesContent.includes('SvcbRecord'), 'Should export SvcbRecord type');
+  t.true(
+    typesContent.includes('class Tangerine extends Resolver'),
+    'Should export Tangerine class extending Resolver'
+  );
+  t.true(
+    typesContent.includes('spoofPacket('),
+    'Should export spoofPacket method'
+  );
+  t.true(
+    typesContent.includes('expires?: number'),
+    'spoofPacket should have expires parameter'
+  );
+});
+
+// Test package.json has types field
+test('package.json has types field pointing to index.d.ts', (t) => {
+  const pkgPath = require('node:path').join(__dirname, '..', 'package.json');
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+
+  t.is(pkg.types, 'index.d.ts', 'package.json should have types field');
+  t.true(
+    pkg.files.includes('index.d.ts'),
+    'package.json files should include index.d.ts'
+  );
+});
+
+// Test HTTPS record type is in TYPES set
+test('HTTPS and SVCB are in TYPES set', (t) => {
+  t.true(Tangerine.TYPES.has('HTTPS'), 'TYPES should include HTTPS');
+  t.true(Tangerine.TYPES.has('SVCB'), 'TYPES should include SVCB');
+  // Also verify the UNKNOWN_* types used internally
+  t.true(Tangerine.TYPES.has('UNKNOWN_64'), 'TYPES should include UNKNOWN_64');
+  t.true(Tangerine.TYPES.has('UNKNOWN_65'), 'TYPES should include UNKNOWN_65');
+});

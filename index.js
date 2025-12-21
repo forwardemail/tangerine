@@ -57,6 +57,13 @@ const NODE_MAJOR_VERSION = Number.parseInt(
   10
 );
 
+// HTTPS and SVCB record types are not yet supported by dns-packet
+// We map them to UNKNOWN_65 and UNKNOWN_64 respectively
+// See: https://github.com/mafintosh/dns-packet/pull/104
+const HTTPS_SVCB_TYPE_MAP = {
+  HTTPS: 'UNKNOWN_65',
+  SVCB: 'UNKNOWN_64'
+};
 // <https://github.com/szmarczak/cacheable-lookup/pull/76>
 class Tangerine extends dns.promises.Resolver {
   static HOSTFILE = HOSTFILE;
@@ -279,6 +286,8 @@ class Tangerine extends dns.promises.Resolver {
     'TXT',
     'UID',
     'UINFO',
+    'UNKNOWN_64',
+    'UNKNOWN_65',
     'UNSPEC',
     'URI',
     'WKS',
@@ -1542,7 +1551,7 @@ class Tangerine extends dns.promises.Resolver {
   }
 
   // eslint-disable-next-line max-params
-  spoofPacket(name, rrtype, answers = [], json = false, expires = 30000) {
+  spoofPacket(name, rrtype, answers = [], json = false, expires = 300000) {
     if (typeof name !== 'string') {
       const err = new TypeError('The "name" argument must be of type string.');
       err.code = 'ERR_INVALID_ARG_TYPE';
@@ -1633,6 +1642,13 @@ class Tangerine extends dns.promises.Resolver {
       const err = new TypeError("The argument 'rrtype' is invalid.");
       err.code = 'ERR_INVALID_ARG_VALUE';
       throw err;
+    }
+
+    // Map HTTPS/SVCB to UNKNOWN_65/UNKNOWN_64 for dns-packet compatibility
+    // Store original rrtype for later use
+    const originalRrtype = rrtype;
+    if (HTTPS_SVCB_TYPE_MAP[rrtype]) {
+      rrtype = HTTPS_SVCB_TYPE_MAP[rrtype];
     }
 
     // edge case where c-ares detects "." as start of string or malformed hostnames
@@ -2184,6 +2200,159 @@ class Tangerine extends dns.promises.Resolver {
           // aliases to match Cloudflare DNS response
           obj.matchingType = obj.mtype;
           obj.certificate = obj.cert;
+
+          return obj;
+        });
+      }
+
+      // HTTPS and SVCB records (types 65 and 64)
+      // These are mapped from HTTPS/SVCB to UNKNOWN_65/UNKNOWN_64 for dns-packet compatibility
+      // <https://datatracker.ietf.org/doc/html/rfc9460>
+      case 'UNKNOWN_65':
+      case 'UNKNOWN_64': {
+        return result.answers.map((answer) => {
+          // The data is in wire format, we need to parse it
+          // SVCB/HTTPS RDATA format:
+          // - SvcPriority (2 bytes)
+          // - TargetName (variable length, DNS name format)
+          // - SvcParams (variable length, key-value pairs)
+          const obj = {
+            name: answer.name,
+            ttl: answer.ttl,
+            type: originalRrtype // Use the original type (HTTPS or SVCB)
+          };
+
+          if (Buffer.isBuffer(answer.data)) {
+            // Parse the wire format
+            obj.priority = answer.data.subarray(0, 2).readUInt16BE();
+
+            // Parse the target name (DNS name format)
+            let offset = 2;
+            const labels = [];
+            while (offset < answer.data.length) {
+              const labelLen = answer.data[offset];
+              if (labelLen === 0) {
+                offset++;
+                break;
+              }
+
+              labels.push(
+                answer.data
+                  .subarray(offset + 1, offset + 1 + labelLen)
+                  .toString()
+              );
+              offset += 1 + labelLen;
+            }
+
+            obj.target = labels.length > 0 ? labels.join('.') : '.';
+
+            // Parse SvcParams if there's remaining data
+            obj.params = {};
+            while (offset + 4 <= answer.data.length) {
+              const paramKey = answer.data
+                .subarray(offset, offset + 2)
+                .readUInt16BE();
+              const paramLen = answer.data
+                .subarray(offset + 2, offset + 4)
+                .readUInt16BE();
+              offset += 4;
+
+              if (offset + paramLen > answer.data.length) break;
+
+              const paramValue = answer.data.subarray(
+                offset,
+                offset + paramLen
+              );
+              offset += paramLen;
+
+              // Map known SvcParam keys to names
+              // <https://www.iana.org/assignments/dns-svcb/dns-svcb.xhtml>
+              const paramNames = {
+                0: 'mandatory',
+                1: 'alpn',
+                2: 'no-default-alpn',
+                3: 'port',
+                4: 'ipv4hint',
+                5: 'ech',
+                6: 'ipv6hint',
+                7: 'dohpath'
+              };
+
+              const paramName = paramNames[paramKey] || `key${paramKey}`;
+
+              // Parse specific param types
+              switch (paramKey) {
+                case 1: {
+                  // alpn - list of ALPN protocol IDs
+                  const alpns = [];
+                  let alpnOffset = 0;
+                  while (alpnOffset < paramValue.length) {
+                    const alpnLen = paramValue[alpnOffset];
+                    alpns.push(
+                      paramValue
+                        .subarray(alpnOffset + 1, alpnOffset + 1 + alpnLen)
+                        .toString()
+                    );
+                    alpnOffset += 1 + alpnLen;
+                  }
+
+                  obj.params[paramName] = alpns;
+                  break;
+                }
+
+                case 3: {
+                  // port
+                  obj.params[paramName] = paramValue.readUInt16BE();
+                  break;
+                }
+
+                case 4: {
+                  // ipv4hint - list of IPv4 addresses
+                  const ips = [];
+                  for (let i = 0; i < paramValue.length; i += 4) {
+                    ips.push(
+                      `${paramValue[i]}.${paramValue[i + 1]}.${paramValue[i + 2]}.${paramValue[i + 3]}`
+                    );
+                  }
+
+                  obj.params[paramName] = ips;
+                  break;
+                }
+
+                case 6: {
+                  // ipv6hint - list of IPv6 addresses
+                  const ip6s = [];
+                  for (let i = 0; i < paramValue.length; i += 16) {
+                    const parts = [];
+                    for (let j = 0; j < 16; j += 2) {
+                      parts.push(
+                        paramValue.subarray(i + j, i + j + 2).toString('hex')
+                      );
+                    }
+
+                    ip6s.push(parts.join(':'));
+                  }
+
+                  obj.params[paramName] = ip6s;
+                  break;
+                }
+
+                case 7: {
+                  // dohpath
+                  obj.params[paramName] = paramValue.toString();
+                  break;
+                }
+
+                default: {
+                  // Store as hex for unknown params
+                  obj.params[paramName] = paramValue.toString('hex');
+                }
+              }
+            }
+          } else {
+            // Data is already parsed (from cache or JSON)
+            Object.assign(obj, answer.data);
+          }
 
           return obj;
         });

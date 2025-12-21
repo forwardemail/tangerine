@@ -59,7 +59,8 @@
     "node": ">=18"
   },
   "files": [
-    "index.js"
+    "index.js",
+    "index.d.ts"
   ],
   "homepage": "https://github.com/forwardemail/nodejs-dns-over-https-tangerine",
   "keywords": [
@@ -162,5 +163,6 @@
     "prepare": "husky install",
     "pretest": "npm run lint",
     "test": "npm run nyc"
-  }
+  },
+  "types": "index.d.ts"
 }
