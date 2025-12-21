@@ -632,8 +632,8 @@ class Tangerine extends dns.promises.Resolver {
       // remap and perform syscall
       err.syscall = 'getaddrinfo';
       err.message = err.message.replace('query', 'getaddrinfo');
-      err.errno = -3008; // <-- ?
-      // err.errno = -3007;
+      // errno -3007 is for invalid hostnames (like ".")
+      err.errno = -3007;
       throw err;
     }
 
@@ -734,19 +734,27 @@ class Tangerine extends dns.promises.Resolver {
       }
     }
 
-    if (
-      answers.length === 0 &&
-      errors.length > 0 &&
-      errors.every((e) => e.code === errors[0].code)
-    ) {
-      const err = this.constructor.createError(
-        name,
-        '',
-        errors[0].code === dns.BADNAME ? dns.NOTFOUND : errors[0].code
-      );
+    if (answers.length === 0 && errors.length > 0) {
+      // For lookup, if any error is ENOTFOUND, return ENOTFOUND
+      // For .localhost subdomains, BADNAME, and ENODATA errors, return ENOTFOUND
+      // This matches c-ares behavior for lookup
+      let errorCode = errors[0].code;
+      const hasNotFound = errors.some((e) => e.code === dns.NOTFOUND);
+      if (
+        hasNotFound ||
+        errorCode === dns.BADNAME ||
+        errorCode === dns.NODATA ||
+        lower.endsWith('.localhost') ||
+        lower.endsWith('.localhost.')
+      ) {
+        errorCode = dns.NOTFOUND;
+      }
+
+      const err = this.constructor.createError(name, '', errorCode);
       // remap and perform syscall
       err.syscall = 'getaddrinfo';
       err.message = err.message.replace('query', 'getaddrinfo');
+      // errno -3008 is the standard ENOTFOUND errno
       err.errno = -3008;
       throw err;
     }
@@ -935,7 +943,8 @@ class Tangerine extends dns.promises.Resolver {
     for (const rule of this.constructor.HOSTS) {
       if (rule.ip === ip) {
         match = true;
-        for (const host of rule.hosts.slice(1)) {
+        // Include all hosts (c-ares includes all hosts from /etc/hosts)
+        for (const host of rule.hosts) {
           answers.add(host);
         }
       }
@@ -1029,7 +1038,32 @@ class Tangerine extends dns.promises.Resolver {
   // (this means it's a drop-in replacement for `dns`)
   // <https://github.com/nodejs/node/blob/9bbde3d7baef584f14569ef79f116e9d288c7aaa/lib/internal/dns/utils.js#L87-L95>
   getServers() {
-    return [...this.options.servers];
+    // Normalize IPv6 addresses to match native dns.Resolver behavior
+    // e.g., '[::0]' -> '::' but '[2001:db8::1]:8080' stays as-is
+    return [...this.options.servers].map((server) => {
+      // Check if it's a bracketed IPv6 address
+      if (server.startsWith('[')) {
+        // Extract the IPv6 address and optional port
+        const match = server.match(/^\[([^\]]+)](?::(\d+))?$/);
+        if (match) {
+          const ipv6 = match[1];
+          const port = match[2];
+          // Normalize the IPv6 address using ipaddr.js
+          try {
+            const parsed = ipaddr.parse(ipv6);
+            const normalized = parsed.toString();
+            // If there's a port, keep the bracket format like native DNS does
+            // Otherwise just return the normalized address
+            return port ? `[${normalized}]:${port}` : normalized;
+          } catch {
+            // If parsing fails, return as-is
+            return server;
+          }
+        }
+      }
+
+      return server;
+    });
   }
 
   //
@@ -1072,7 +1106,7 @@ class Tangerine extends dns.promises.Resolver {
 
     debug('request', { url, options });
     const t = setTimeout(() => {
-      if (!abortController?.signal?.aborted) abortController.abort();
+      if (!abortController?.signal?.aborted) abortController.abort('ETIMEOUT');
     }, timeout);
     const response = await this.request(url, options);
     clearTimeout(t);
@@ -1217,7 +1251,12 @@ class Tangerine extends dns.promises.Resolver {
         if (errors.length > 0) throw this.constructor.combineErrors(errors);
         // if no errors and no response
         // that must indicate that it was aborted
-        throw this.constructor.createError(name, rrtype, dns.CANCELLED);
+        // Check if this was a timeout abort (reason will be 'ETIMEOUT')
+        const abortCode =
+          abortController?.signal?.reason === 'ETIMEOUT'
+            ? dns.TIMEOUT
+            : dns.CANCELLED;
+        throw this.constructor.createError(name, rrtype, abortCode);
       }
 
       // without logging an error here, one might not know
@@ -1234,10 +1273,20 @@ class Tangerine extends dns.promises.Resolver {
     } catch (_err) {
       debug(_err, { name, rrtype, ecsSubnet });
       if (this.options.returnHTTPErrors) throw _err;
+      // Check if this was a timeout abort (reason will be 'ETIMEOUT')
+      // or if the error name is AbortError with a numeric code (undici behavior)
+      let errorCode = _err.code;
+      if (
+        (_err.name === 'AbortError' || typeof _err.code === 'number') &&
+        abortController?.signal?.reason === 'ETIMEOUT'
+      ) {
+        errorCode = 'ETIMEOUT';
+      }
+
       const err = this.constructor.createError(
         name,
         rrtype,
-        _err.code,
+        errorCode,
         _err.errno
       );
       // then map it to dns.CONNREFUSED
@@ -1326,7 +1375,11 @@ class Tangerine extends dns.promises.Resolver {
             }
 
             case 'MX': {
-              const result = await this.resolveMx(name, options, abortController);
+              const result = await this.resolveMx(
+                name,
+                options,
+                abortController
+              );
               return result.map((r) => ({ type, ...r }));
             }
 
@@ -1340,7 +1393,11 @@ class Tangerine extends dns.promises.Resolver {
             }
 
             case 'NS': {
-              const result = await this.resolveNs(name, options, abortController);
+              const result = await this.resolveNs(
+                name,
+                options,
+                abortController
+              );
               return result.map((value) => ({ type, value }));
             }
 
@@ -1570,10 +1627,79 @@ class Tangerine extends dns.promises.Resolver {
       throw err;
     }
 
-    // edge case where c-ares detects "." as start of string
+    // edge case where c-ares detects "." as start of string or malformed hostnames
     // <https://github.com/c-ares/c-ares/blob/38b30bc922c21faa156939bde15ea35332c30e08/src/lib/ares_getaddrinfo.c#L829>
-    if (name !== '.' && (name.startsWith('.') || name.includes('..')))
+    if (
+      (name !== '.' && (name.startsWith('.') || name.includes('..'))) ||
+      name.includes(',')
+    )
       throw this.constructor.createError(name, rrtype, dns.BADNAME);
+
+    // IP addresses passed to resolve should return appropriate errors (matches c-ares behavior)
+    // IPv6 addresses return EBADNAME for all record types
+    // IPv4 addresses return ENOTFOUND for A records, ENODATA for AAAA records
+    // <https://github.com/c-ares/c-ares/blob/main/src/lib/ares_getaddrinfo.c>
+    if (isIPv6(name))
+      throw this.constructor.createError(name, rrtype, dns.BADNAME);
+    if (isIPv4(name)) {
+      // For AAAA queries on IPv4 addresses, return ENODATA (no IPv6 data for IPv4 address)
+      if (rrtype === 'AAAA')
+        throw this.constructor.createError(name, rrtype, dns.NODATA);
+      throw this.constructor.createError(name, rrtype, dns.NOTFOUND);
+    }
+
+    // Handle localhost and .localhost domains for A and AAAA records
+    // This mirrors c-ares behavior which returns results from /etc/hosts
+    // <https://www.rfc-editor.org/rfc/rfc6761.html#section-6.3>
+    const lower = name.toLowerCase();
+    if (
+      (rrtype === 'A' || rrtype === 'AAAA') &&
+      (lower === 'localhost' ||
+        lower === 'localhost.' ||
+        lower.endsWith('.localhost') ||
+        lower.endsWith('.localhost.'))
+    ) {
+      // Check /etc/hosts first
+      let resolve4;
+      let resolve6;
+      for (const rule of this.constructor.HOSTS) {
+        if (rule.hosts.every((h) => h.toLowerCase() !== lower)) continue;
+        const type = isIP(rule.ip);
+        if (!resolve4 && type === 4) {
+          resolve4 = [rule.ip];
+        } else if (!resolve6 && type === 6) {
+          resolve6 = [rule.ip];
+        }
+      }
+
+      // Default fallback for localhost
+      if (lower === 'localhost' || lower === 'localhost.') {
+        resolve4 ||= ['127.0.0.1'];
+        resolve6 ||= ['::1'];
+      }
+
+      if (rrtype === 'A' && resolve4) {
+        if (options?.ttl)
+          return resolve4.map((address) => ({ ttl: 0, address }));
+        return resolve4;
+      }
+
+      if (rrtype === 'AAAA' && resolve6) {
+        if (options?.ttl)
+          return resolve6.map((address) => ({ ttl: 0, address }));
+        return resolve6;
+      }
+
+      // If no matching records found, throw appropriate error
+      // For A records on subdomains of .localhost, throw ENOTFOUND
+      // For AAAA records on subdomains of .localhost, throw ENODATA
+      // This matches c-ares behavior
+      if (rrtype === 'A') {
+        throw this.constructor.createError(name, rrtype, dns.NOTFOUND);
+      }
+
+      throw this.constructor.createError(name, rrtype, dns.NODATA);
+    }
 
     // purge cache support
     let purgeCache;
@@ -1636,7 +1762,6 @@ class Tangerine extends dns.promises.Resolver {
           const diff = data.ttl - ttl;
 
           for (let i = 0; i < data.answers.length; i++) {
-            // eslint-disable-next-line max-depth
             if (typeof data.answers[i].ttl === 'number') {
               // subtract ttl from answer
               data.answers[i].ttl = Math.round(data.answers[i].ttl - diff);
