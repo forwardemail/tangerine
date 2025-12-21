@@ -10,7 +10,6 @@ jobs:
         os:
           - ubuntu-latest
         node_version:
-          - 16
           - 18
     name: Node ${{ matrix.node_version }} on ${{ matrix.os }}
     steps:
