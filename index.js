@@ -49,6 +49,14 @@ for (const line of hosts) {
   HOSTS.push({ ip, hosts });
 }
 
+// Node.js v24+ adds a 'type' property to certain DNS record objects (MX, CAA, SRV, NAPTR)
+// We need to match this behavior for compatibility
+// See: https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V24.md
+const NODE_MAJOR_VERSION = Number.parseInt(
+  process.versions.node.split('.')[0],
+  10
+);
+
 // <https://github.com/szmarczak/cacheable-lookup/pull/76>
 class Tangerine extends dns.promises.Resolver {
   static HOSTFILE = HOSTFILE;
@@ -1952,10 +1960,24 @@ class Tangerine extends dns.promises.Resolver {
       case 'CAA': {
         // CA authorization records	`dnsPromises.resolveCaa()`
         // <https://www.rfc-editor.org/rfc/rfc6844#section-3>
-        return result.answers.map((a) => ({
-          critical: a.data.flags,
-          [a.data.tag]: a.data.value
-        }));
+        // Node.js v24+ adds 'type' property to CAA records
+        return result.answers.map((a) => {
+          const record = {
+            critical: a.data.flags,
+            [a.data.tag]: a.data.value
+          };
+          // Add type property for Node.js v24+ compatibility
+          if (NODE_MAJOR_VERSION >= 24) {
+            // Insert type after critical to match native DNS order
+            return {
+              critical: record.critical,
+              type: 'CAA',
+              [a.data.tag]: a.data.value
+            };
+          }
+
+          return record;
+        });
       }
 
       case 'CNAME': {
@@ -1965,15 +1987,34 @@ class Tangerine extends dns.promises.Resolver {
 
       case 'MX': {
         // mail exchange records	`dnsPromises.resolveMx()`
-        return result.answers.map((a) => ({
-          exchange: a.data.exchange,
-          priority: a.data.preference
-        }));
+        // Node.js v24+ adds 'type' property to MX records
+        return result.answers.map((a) => {
+          const record = {
+            exchange: a.data.exchange,
+            priority: a.data.preference
+          };
+          // Add type property for Node.js v24+ compatibility
+          if (NODE_MAJOR_VERSION >= 24) {
+            record.type = 'MX';
+          }
+
+          return record;
+        });
       }
 
       case 'NAPTR': {
         // name authority pointer records `dnsPromises.resolveNaptr()`
-        return result.answers.map((a) => a.data);
+        // Node.js v24+ adds 'type' property to NAPTR records (with undefined value)
+        return result.answers.map((a) => {
+          const record = { ...a.data };
+          // Add type property for Node.js v24+ compatibility
+          // Note: Node.js v24 sets type to undefined for NAPTR records
+          if (NODE_MAJOR_VERSION >= 24) {
+            record.type = undefined;
+          }
+
+          return record;
+        });
       }
 
       case 'NS': {
@@ -1988,15 +2029,25 @@ class Tangerine extends dns.promises.Resolver {
 
       case 'SOA': {
         // start of authority records `dnsPromises.resolveSoa()`
-        const answers = result.answers.map((a) => ({
-          nsname: a.data.mname,
-          hostmaster: a.data.rname,
-          serial: a.data.serial,
-          refresh: a.data.refresh,
-          retry: a.data.retry,
-          expire: a.data.expire,
-          minttl: a.data.minimum
-        }));
+        // Node.js v24+ adds 'type' property to SOA records (with undefined value)
+        const answers = result.answers.map((a) => {
+          const record = {
+            nsname: a.data.mname,
+            hostmaster: a.data.rname,
+            serial: a.data.serial,
+            refresh: a.data.refresh,
+            retry: a.data.retry,
+            expire: a.data.expire,
+            minttl: a.data.minimum
+          };
+          // Add type property for Node.js v24+ compatibility
+          // Note: Node.js v24 sets type to undefined for SOA records
+          if (NODE_MAJOR_VERSION >= 24) {
+            record.type = undefined;
+          }
+
+          return record;
+        });
         //
         // NOTE: probably should just return answers[0] for consistency (?)
         //
@@ -2005,12 +2056,21 @@ class Tangerine extends dns.promises.Resolver {
 
       case 'SRV': {
         // service records	`dnsPromises.resolveSrv()`
-        return result.answers.map((a) => ({
-          name: a.data.target,
-          port: a.data.port,
-          priority: a.data.priority,
-          weight: a.data.weight
-        }));
+        // Node.js v24+ adds 'type' property to SRV records
+        return result.answers.map((a) => {
+          const record = {
+            name: a.data.target,
+            port: a.data.port,
+            priority: a.data.priority,
+            weight: a.data.weight
+          };
+          // Add type property for Node.js v24+ compatibility
+          if (NODE_MAJOR_VERSION >= 24) {
+            record.type = 'SRV';
+          }
+
+          return record;
+        });
       }
 
       case 'TXT': {

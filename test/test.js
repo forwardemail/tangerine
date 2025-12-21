@@ -1,5 +1,6 @@
 const dns = require('node:dns');
 const fs = require('node:fs');
+const process = require('node:process');
 const { Buffer } = require('node:buffer');
 const { isIP, isIPv4, isIPv6 } = require('node:net');
 const isCI = require('is-ci');
@@ -11,6 +12,12 @@ const test = require('ava');
 const Tangerine = require('..');
 
 const { Resolver } = dns.promises;
+
+// Node.js v24+ adds a 'type' property to certain DNS record objects
+const NODE_MAJOR_VERSION = Number.parseInt(
+  process.versions.node.split('.')[0],
+  10
+);
 
 //
 // NOTE: tests won't work if you're behind a VPN with DNS blackholed
@@ -166,6 +173,7 @@ function compareResults(t, type, r1, r2) {
     case 'SOA': {
       if (!_.isError(r1) && !_.isError(r2)) {
         // ensure object that has the following values for both
+        // Node.js v24+ adds 'type' property to SOA records
         const keys = [
           'nsname',
           'hostmaster',
@@ -175,6 +183,10 @@ function compareResults(t, type, r1, r2) {
           'expire',
           'minttl'
         ];
+        if (NODE_MAJOR_VERSION >= 24) {
+          keys.push('type');
+        }
+
         t.deepEqual(keys.sort(), Object.keys(r1).sort());
         t.deepEqual(keys.sort(), Object.keys(r2).sort());
       } else if (_.isError(r1) && _.isError(r2)) {
@@ -1255,8 +1267,16 @@ test('spoofPacket', async (t) => {
 
   const mxDns = await tangerine.resolveMx('forwardemail.net');
 
-  t.deepEqual(mxDns, [
-    { exchange: 'mx1.forwardemail.net', priority: 0 },
-    { exchange: 'mx2.forwardemail.net', priority: 0 }
-  ]);
+  // Node.js v24+ adds 'type' property to MX records
+  const expectedMx =
+    NODE_MAJOR_VERSION >= 24
+      ? [
+          { exchange: 'mx1.forwardemail.net', priority: 0, type: 'MX' },
+          { exchange: 'mx2.forwardemail.net', priority: 0, type: 'MX' }
+        ]
+      : [
+          { exchange: 'mx1.forwardemail.net', priority: 0 },
+          { exchange: 'mx2.forwardemail.net', priority: 0 }
+        ];
+  t.deepEqual(mxDns, expectedMx);
 });

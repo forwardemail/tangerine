@@ -1,0 +1,137 @@
+name: Daily Tangerine Benchmarks
+
+on:
+  schedule:
+    # Run daily at 2:00 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual triggering
+  push:
+    branches:
+      - main
+    paths:
+      - 'benchmarks/**'
+      - '.github/workflows/daily-benchmarks.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  benchmark:
+    name: Run Benchmarks on Node ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20, 22, 24, 'latest']
+      fail-fast: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run benchmarks
+        run: npm run benchmarks -- --json > benchmark_results_node_${{ matrix.node-version }}.json 2>&1 || true
+        continue-on-error: true
+
+      - name: Run benchmarks (fallback to text output)
+        run: |
+          node -e "
+          const { execSync } = require('child_process');
+          const fs = require('fs');
+          const version = process.version;
+
+          const results = {
+            node_version: version,
+            platform: process.platform,
+            arch: process.arch,
+            timestamp: new Date().toISOString(),
+            benchmarks: {}
+          };
+
+          // Run each benchmark and capture output
+          const benchmarks = ['lookup', 'resolve', 'reverse'];
+          for (const bench of benchmarks) {
+            try {
+              const output = execSync(\`node benchmarks/\${bench}\`, {
+                encoding: 'utf8',
+                timeout: 300000
+              });
+              results.benchmarks[bench] = output;
+            } catch (err) {
+              results.benchmarks[bench] = err.message;
+            }
+          }
+
+          fs.writeFileSync(
+            \`benchmark_results_node_\${version}.json\`,
+            JSON.stringify(results, null, 2)
+          );
+          console.log('Benchmark results saved for Node.js', version);
+          "
+        continue-on-error: true
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-node-${{ matrix.node-version }}
+          path: benchmark_results_node_*.json
+          if-no-files-found: warn
+
+  consolidate:
+    name: Consolidate Results and Update README
+    needs: benchmark
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download all benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          path: benchmark-artifacts
+
+      - name: Consolidate benchmark results
+        run: |
+          # Move all JSON files to root directory
+          find benchmark-artifacts -name "*.json" -exec cp {} . \;
+
+          # List all result files
+          ls -la benchmark_results_*.json || echo "No benchmark result files found"
+
+      - name: Install dependencies for update script
+        run: npm install
+
+      - name: Generate updated README
+        run: node scripts/update-readme.js
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+      - name: Commit and push changes
+        run: |
+          git add benchmark_results_*.json README.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update benchmark results [skip ci]"
+            git push
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
