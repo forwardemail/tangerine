@@ -54,7 +54,7 @@ function generateBenchmarkSection(results) {
     if (data.benchmarks) {
       for (const [benchName, output] of Object.entries(data.benchmarks)) {
         section += `**${benchName}:**\n\n`;
-        section += '```\n';
+        section += '```text\n';
         section += String(output).trim();
         section += '\n```\n\n';
       }
