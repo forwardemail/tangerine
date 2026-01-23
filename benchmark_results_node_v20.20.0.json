@@ -1,0 +1,11 @@
+{
+  "node_version": "v20.20.0",
+  "platform": "linux",
+  "arch": "x64",
+  "timestamp": "2026-01-23T02:59:30.476Z",
+  "benchmarks": {
+    "lookup": "Started: lookup\ntangerine.lookup POST with caching using Cloudflare x 718 ops/sec ±195.51% (85 runs sampled)\ntangerine.lookup POST without caching using Cloudflare x 329 ops/sec ±2.64% (80 runs sampled)\ntangerine.lookup GET with caching using Cloudflare x 302,560 ops/sec ±0.24% (90 runs sampled)\ntangerine.lookup GET without caching using Cloudflare x 354 ops/sec ±1.94% (81 runs sampled)\ndns.promises.lookup with caching using Cloudflare x 9,110,088 ops/sec ±0.71% (88 runs sampled)\ndns.promises.lookup without caching using Cloudflare x 3,161 ops/sec ±0.79% (86 runs sampled)\nFastest without caching is: dns.promises.lookup without caching using Cloudflare\n\n",
+    "resolve": "Started: resolve\ntangerine.resolve POST with caching using Cloudflare x 811 ops/sec ±195.85% (89 runs sampled)\ntangerine.resolve POST without caching using Cloudflare x 387 ops/sec ±1.67% (84 runs sampled)\ntangerine.resolve GET with caching using Cloudflare x 1,050,788 ops/sec ±0.26% (90 runs sampled)\ntangerine.resolve GET without caching using Cloudflare x 344 ops/sec ±1.44% (83 runs sampled)\ntangerine.resolve POST with caching using Google x 1,049,117 ops/sec ±0.26% (90 runs sampled)\ntangerine.resolve POST without caching using Google x 193 ops/sec ±16.87% (62 runs sampled)\ntangerine.resolve GET with caching using Google x 1,053,150 ops/sec ±0.37% (89 runs sampled)\ntangerine.resolve GET without caching using Google x 305 ops/sec ±5.14% (73 runs sampled)\nresolver.resolve with caching using Cloudflare x 7,947,546 ops/sec ±0.34% (89 runs sampled)\nresolver.resolve without caching using Cloudflare x 26.39 ops/sec ±184.57% (79 runs sampled)\nFastest without caching is: tangerine.resolve POST without caching using Cloudflare\n\n",
+    "reverse": "spawnSync /bin/sh ETIMEDOUT"
+  }
+}
