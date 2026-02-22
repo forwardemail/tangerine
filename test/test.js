@@ -7,6 +7,7 @@ const isCI = require('is-ci');
 const Redis = require('ioredis-mock');
 const _ = require('lodash');
 const got = require('got');
+const packet = require('dns-packet');
 const sortKeys = require('sort-keys');
 const test = require('ava');
 const Tangerine = require('..');
@@ -75,6 +76,114 @@ test('instance', (t) => {
   t.true(tangerine instanceof Resolver);
   t.is(tangerine.options.timeout, 5000);
   t.is(tangerine.options.tries, 4);
+  t.false(tangerine.options.parallelResolution);
+});
+
+function createAResponseBuffer(name, address) {
+  return packet.encode({
+    id: 1,
+    type: 'response',
+    flags: 384,
+    questions: [{ name, type: 'A', class: 'IN' }],
+    answers: [{ name, type: 'A', ttl: 300, class: 'IN', data: address }],
+    authorities: [],
+    additionals: []
+  });
+}
+
+function createMockRequest(name, serverMap, calls) {
+  return async (url, options = {}) => {
+    const server = new URL(url).hostname;
+    calls.push(server);
+    const behavior = serverMap[server];
+    if (!behavior)
+      throw new Error(`Missing mock server behavior for "${server}"`);
+
+    await new Promise((resolve, reject) => {
+      const onAbort = () => {
+        clearTimeout(timer);
+        options.signal?.removeEventListener('abort', onAbort);
+        const err = new Error('aborted');
+        err.name = 'AbortError';
+        err.code = 'ABORT_ERR';
+        reject(err);
+      };
+
+      const timer = setTimeout(() => {
+        options.signal?.removeEventListener('abort', onAbort);
+        resolve();
+      }, behavior.delay);
+
+      if (options.signal?.aborted) onAbort();
+      else options.signal?.addEventListener('abort', onAbort, { once: true });
+    });
+
+    return {
+      statusCode: 200,
+      headers: {},
+      body: createAResponseBuffer(name, behavior.address)
+    };
+  };
+}
+
+test('parallelResolution must be boolean', (t) => {
+  const err = t.throws(() => {
+    const tangerine = new Tangerine({ parallelResolution: 'true' });
+    return tangerine;
+  });
+  t.is(err.message, 'parallelResolution must be a boolean');
+});
+
+test('resolve4 uses serial server resolution by default', async (t) => {
+  const calls = [];
+  const host = 'example.com';
+  const tangerine = new Tangerine(
+    {
+      cache: false,
+      timeout: 500,
+      tries: 1,
+      servers: ['1.1.1.1', '8.8.8.8']
+    },
+    createMockRequest(
+      host,
+      {
+        '1.1.1.1': { delay: 20, address: '1.1.1.1' },
+        '8.8.8.8': { delay: 1, address: '8.8.8.8' }
+      },
+      calls
+    )
+  );
+
+  const result = await tangerine.resolve4(host);
+  t.deepEqual(result, ['1.1.1.1']);
+  t.deepEqual(calls, ['1.1.1.1']);
+});
+
+test('resolve4 supports parallel server resolution', async (t) => {
+  const calls = [];
+  const host = 'example.com';
+  const tangerine = new Tangerine(
+    {
+      cache: false,
+      timeout: 500,
+      tries: 1,
+      parallelResolution: true,
+      servers: ['1.1.1.1', '8.8.8.8']
+    },
+    createMockRequest(
+      host,
+      {
+        '1.1.1.1': { delay: 30, address: '1.1.1.1' },
+        '8.8.8.8': { delay: 1, address: '8.8.8.8' }
+      },
+      calls
+    )
+  );
+
+  const result = await tangerine.resolve4(host);
+  t.deepEqual(result, ['8.8.8.8']);
+  t.true(calls.includes('1.1.1.1'));
+  t.true(calls.includes('8.8.8.8'));
 });
 
 // tangerine.cancel()
