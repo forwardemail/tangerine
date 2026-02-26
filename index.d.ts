@@ -135,6 +135,13 @@ export type TangerineOptions = {
   smartRotate?: boolean;
 
   /**
+   * Whether to resolve against all configured servers in parallel and return
+   * the first successful response.
+   * @default false
+   */
+  parallelResolution?: boolean;
+
+  /**
    * Default error message for unsuccessful HTTP responses.
    * @default 'Unsuccessful HTTP response'
    */

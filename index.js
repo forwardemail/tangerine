@@ -13,6 +13,7 @@ const hostile = require('hostile');
 const ipaddr = require('ipaddr.js');
 const isStream = require('is-stream');
 const mergeOptions = require('merge-options');
+const pAny = require('p-any');
 const pMap = require('p-map');
 const pWaitFor = require('p-wait-for');
 const packet = require('dns-packet');
@@ -451,6 +452,8 @@ class Tangerine extends dns.promises.Resolver {
         returnHTTPErrors: false,
         // whether to smart rotate and bump-to-end servers that have issues
         smartRotate: true,
+        // whether to resolve all servers in parallel and use first successful result
+        parallelResolution: false,
         // fallback if status code was not found in http.STATUS_CODES
         defaultHTTPErrorMessage: 'Unsuccessful HTTP response'
       },
@@ -489,6 +492,12 @@ class Tangerine extends dns.promises.Resolver {
 
     if (!['verbatim', 'ipv4first'].includes(this.options.dnsOrder))
       throw new Error('DNS order must be either verbatim or ipv4first');
+
+    if (this.options.parallelResolution === undefined)
+      this.options.parallelResolution = false;
+
+    if (typeof this.options.parallelResolution !== 'boolean')
+      throw new Error('parallelResolution must be a boolean');
 
     // if `cache: false` then caching is disabled
     // but note that this doesn't disable `got` dnsCache which is separate
@@ -1131,7 +1140,7 @@ class Tangerine extends dns.promises.Resolver {
   }
 
   // <https://github.com/hildjj/dohdec/tree/main/pkg/dohdec>
-  // eslint-disable-next-line complexity
+
   async #query(name, rrtype = 'A', ecsSubnet, abortController) {
     if (!dohdec) await pWaitFor(() => Boolean(dohdec));
     debug('query', {
@@ -1158,46 +1167,105 @@ class Tangerine extends dns.promises.Resolver {
       // <https://github.com/nodejs/node/issues/33353#issuecomment-627259827>
       let buffer;
       const errors = [];
-      // NOTE: we would have used `p-map-series` but it did not support abort/break
       const servers = [...this.options.servers];
-      for (const server of servers) {
+
+      const parseBody = async (body) => {
+        // <https://sindresorhus.com/blog/goodbye-nodejs-buffer>
+        if (Buffer.isBuffer(body)) return body;
+        if (typeof body.arrayBuffer === 'function')
+          return Buffer.from(await body.arrayBuffer());
+        if (isStream(body)) return getStream.buffer(body);
+        const err = new TypeError('Unsupported body type');
+        err.body = body;
+        throw err;
+      };
+
+      const getRequestAbortController = (parallelAbortController) => {
+        if (!parallelAbortController)
+          return {
+            requestAbortController: abortController,
+            cleanupAbortController() {}
+          };
+
+        const requestAbortController = new AbortController();
+        const parentSignal = abortController?.signal;
+        const parallelSignal = parallelAbortController.signal;
+        const onAbort = () => {
+          if (!requestAbortController.signal.aborted)
+            requestAbortController.abort(parentSignal.reason);
+        };
+
+        const onParallelAbort = () => {
+          if (!requestAbortController.signal.aborted)
+            requestAbortController.abort(parallelSignal.reason);
+        };
+
+        if (parentSignal?.aborted) onAbort();
+        else if (parentSignal)
+          parentSignal.addEventListener('abort', onAbort, { once: true });
+
+        if (parallelSignal.aborted) onParallelAbort();
+        else
+          parallelSignal.addEventListener('abort', onParallelAbort, {
+            once: true
+          });
+
+        return {
+          requestAbortController,
+          cleanupAbortController() {
+            parentSignal?.removeEventListener('abort', onAbort);
+            parallelSignal.removeEventListener('abort', onParallelAbort);
+          }
+        };
+      };
+
+      const addServerErrors = (server, ipErrors) => {
+        if (ipErrors.length === 0) return;
+
+        // if the `server` had all errors, then remove it and add to end
+        // (this ensures we don't keep retrying servers that keep timing out)
+        // (which improves upon default c-ares behavior)
+        if (this.options.servers.size > 1 && this.options.smartRotate) {
+          const err = this.constructor.combineErrors([
+            new Error('Rotating DNS servers due to issues'),
+            ...ipErrors
+          ]);
+          this.options.logger.error(err, { server });
+          this.options.servers.delete(server);
+          this.options.servers.add(server);
+        }
+
+        errors.push(...ipErrors);
+      };
+
+      const throwOnNotFound = (err) => {
+        if (err.code === dns.NOTFOUND) throw err;
+      };
+
+      const queryServer = async (server, parallelAbortController) => {
         const ipErrors = [];
+        let lastError;
+
         for (let i = 0; i < this.options.tries; i++) {
+          const { requestAbortController, cleanupAbortController } =
+            getRequestAbortController(parallelAbortController);
+
           try {
-            // <https://github.com/sindresorhus/p-map-series/blob/bc1b9f5e19ed62363bff3d7dc5ecc1fd820ccb51/index.js#L1-L11>
             // eslint-disable-next-line no-await-in-loop
             const response = await this.#request(
               pkt,
               server,
-              abortController,
+              requestAbortController,
               this.options.timeout * 2 ** i
             );
 
-            // if aborted signal then returns early
-            // eslint-disable-next-line max-depth
             if (response) {
               const { body, headers } = response;
               const statusCode = response.status || response.statusCode;
               debug('response', { statusCode, headers });
 
-              // eslint-disable-next-line max-depth
-              if (body && statusCode >= 200 && statusCode < 300) {
-                // <https://sindresorhus.com/blog/goodbye-nodejs-buffer>
-                // eslint-disable-next-line max-depth
-                if (Buffer.isBuffer(body)) buffer = body;
-                else if (typeof body.arrayBuffer === 'function')
-                  // eslint-disable-next-line no-await-in-loop
-                  buffer = Buffer.from(await body.arrayBuffer());
-                // eslint-disable-next-line no-await-in-loop
-                else if (isStream(body)) buffer = await getStream.buffer(body);
-                else {
-                  const err = new TypeError('Unsupported body type');
-                  err.body = body;
-                  throw err;
-                }
-
-                break;
-              }
+              if (body && statusCode >= 200 && statusCode < 300)
+                return parseBody(body);
 
               // <https://github.com/nodejs/undici/issues/3353>
               if (
@@ -1221,18 +1289,18 @@ class Tangerine extends dns.promises.Resolver {
             }
           } catch (err) {
             debug(err);
+            lastError = err;
 
             //
             // NOTE: if NOTFOUND error occurs then don't attempt further requests
             // <https://nodejs.org/api/dns.html#dnssetserversservers>
             //
 
-            if (err.code === dns.NOTFOUND) throw err;
+            throwOnNotFound(err);
 
             if (err.status >= 429) ipErrors.push(err);
 
             // break out of the loop if status code was not retryable
-
             if (
               !(
                 err.statusCode &&
@@ -1241,26 +1309,43 @@ class Tangerine extends dns.promises.Resolver {
               !(err.code && this.constructor.RETRY_ERROR_CODES.has(err.code))
             )
               break;
+          } finally {
+            cleanupAbortController();
           }
         }
 
-        // break out if we had a response
-        if (buffer) break;
-        if (ipErrors.length > 0) {
-          // if the `server` had all errors, then remove it and add to end
-          // (this ensures we don't keep retrying servers that keep timing out)
-          // (which improves upon default c-ares behavior)
-          if (this.options.servers.size > 1 && this.options.smartRotate) {
-            const err = this.constructor.combineErrors([
-              new Error('Rotating DNS servers due to issues'),
-              ...ipErrors
-            ]);
-            this.options.logger.error(err, { server });
-            this.options.servers.delete(server);
-            this.options.servers.add(server);
-          }
+        addServerErrors(server, ipErrors);
 
-          errors.push(...ipErrors);
+        throw lastError || new Error(`No response from ${server}`);
+      };
+
+      if (this.options.parallelResolution) {
+        const parallelAbortController = new AbortController();
+
+        try {
+          buffer = await pAny(
+            servers.map((server) =>
+              queryServer(server, parallelAbortController)
+            )
+          );
+        } catch (err) {
+          if (errors.length > 0) throw this.constructor.combineErrors(errors);
+          throw err;
+        } finally {
+          if (!parallelAbortController.signal.aborted)
+            parallelAbortController.abort('CANCELLED');
+        }
+      } else {
+        // NOTE: we would have used `p-map-series` but it did not support abort/break
+        for (const server of servers) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            buffer = await queryServer(server);
+            break;
+          } catch (err) {
+            throwOnNotFound(err);
+            debug(err);
+          }
         }
       }
 

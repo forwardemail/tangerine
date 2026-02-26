@@ -398,6 +398,7 @@ Similar to the `options` argument from `new dns.promises.Resolver(options)` invo
 | `returnHTTPErrors`        | `Boolean`                                                                     | `false`                                                                                                                                     | Whether to return HTTP errors instead of mapping them to corresponding DNS errors.                                                                                                                                                                                                                                                                                                                                                                                      |
 | `smartRotate`             | `Boolean`                                                                     | `true`                                                                                                                                      | Whether to do smart server rotation if servers fail.                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `defaultHTTPErrorMessage` | `String`                                                                      | `"Unsuccessful HTTP response"`                                                                                                              | Default fallback message if `statusCode` returned from HTTP request was not found in [http.STATUS_CODES](https://nodejs.org/api/http.html#httpstatus_codes).                                                                                                                                                                                                                                                                                                            |
+| `parallelResolution`      | `Boolean`                                                                     | `false`                                                                                                                                     | Enable parallel resolution for querying DNS servers.                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 
 ## Cache
@@ -1211,7 +1212,6 @@ Fastest without caching is: dns.promises.reverse without caching, resolver.rever
 ```
 
 </details>
-
 
 <!-- BENCHMARK_RESULTS_END -->
 
