@@ -536,23 +536,23 @@ We have written extensive benchmarks to show that :tangerine: Tangerine is as fa
 
 **Last Updated:** 2026-02-26
 
-| Node Version | Platform | Arch | Timestamp |
-|--------------|----------|------|----------|
-| v18.20.8 | linux | x64 | Dec 21, 2025 |
-| v20.19.6 | linux | x64 | Jan 22, 2026 |
-| v20.20.0 | linux | x64 | Feb 25, 2026 |
-| v22.21.1 | linux | x64 | Dec 21, 2025 |
-| v22.22.0 | linux | x64 | Jan 23, 2026 |
-| v24.12.0 | linux | x64 | Dec 21, 2025 |
-| v24.13.0 | linux | x64 | Feb 19, 2026 |
-| v24.13.1 | linux | x64 | Feb 26, 2026 |
-| v25.2.1 | linux | x64 | Dec 21, 2025 |
-| v25.3.0 | linux | x64 | Jan 14, 2026 |
-| v25.4.0 | linux | x64 | Jan 20, 2026 |
-| v25.5.0 | linux | x64 | Jan 27, 2026 |
-| v25.6.0 | linux | x64 | Feb 4, 2026 |
-| v25.6.1 | linux | x64 | Feb 11, 2026 |
-| v25.7.0 | linux | x64 | Feb 25, 2026 |
+| Node Version | Platform | Arch | Timestamp    |
+| ------------ | -------- | ---- | ------------ |
+| v18.20.8     | linux    | x64  | Dec 21, 2025 |
+| v20.19.6     | linux    | x64  | Jan 22, 2026 |
+| v20.20.0     | linux    | x64  | Feb 25, 2026 |
+| v22.21.1     | linux    | x64  | Dec 21, 2025 |
+| v22.22.0     | linux    | x64  | Jan 23, 2026 |
+| v24.12.0     | linux    | x64  | Dec 21, 2025 |
+| v24.13.0     | linux    | x64  | Feb 19, 2026 |
+| v24.13.1     | linux    | x64  | Feb 26, 2026 |
+| v25.2.1      | linux    | x64  | Dec 21, 2025 |
+| v25.3.0      | linux    | x64  | Jan 14, 2026 |
+| v25.4.0      | linux    | x64  | Jan 20, 2026 |
+| v25.5.0      | linux    | x64  | Jan 27, 2026 |
+| v25.6.0      | linux    | x64  | Feb 4, 2026  |
+| v25.6.1      | linux    | x64  | Feb 11, 2026 |
+| v25.7.0      | linux    | x64  | Feb 25, 2026 |
 
 <details>
 <summary>Click to expand detailed benchmark results</summary>

@@ -11,7 +11,9 @@ const response = packet.encode({
   type: 'response',
   flags: 384,
   questions: [{ name: host, type: record, class: 'IN' }],
-  answers: [{ name: host, type: record, ttl: 300, class: 'IN', data: '1.2.3.4' }],
+  answers: [
+    { name: host, type: record, ttl: 300, class: 'IN', data: '1.2.3.4' }
+  ],
   authorities: [],
   additionals: []
 });
@@ -114,11 +116,7 @@ suite.on('cycle', (ev) => {
 });
 
 suite.on('complete', function () {
-  console.log(
-    `Fastest is: ${this.filter('fastest')
-      .map('name')
-      .join(', ')}\n`
-  );
+  console.log(`Fastest is: ${this.filter('fastest').map('name').join(', ')}\n`);
 });
 
 suite.run();
