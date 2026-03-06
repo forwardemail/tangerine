@@ -2028,6 +2028,20 @@ class Tangerine extends dns.promises.Resolver {
     if (result.answers.length === 0 && !options.noThrowOnNODATA)
       throw this.constructor.createError(name, rrtype, dns.NODATA);
 
+    //
+    // RFC 7672 Section 2.2.2: Expose DNSSEC validation status (AD flag)
+    // When options.dnssecSecure is true, return an object with the answers
+    // and a boolean indicating whether the response was DNSSEC-validated.
+    // This allows callers (e.g. mx-connect DANE) to check if the MX host's
+    // zone is signed before attempting TLSA lookups.
+    //
+    if (options?.dnssecSecure) {
+      return {
+        secure: Boolean(result.flag_ad),
+        answers: result.answers
+      };
+    }
+
     // filter the answers for the same type
     result.answers = result.answers.filter((answer) => answer.type === rrtype);
 
