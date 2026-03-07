@@ -237,6 +237,26 @@ tangerine.resolve('forwardemail.net').then(console.log);
 
 ### `tangerine.resolve(hostname[, rrtype, options, abortController])`
 
+Tangerine supports the following additional properties in the `options` Object argument:
+
+* `ecsSubnet` (String) - EDNS Client Subnet (ECS) option for geolocation-aware DNS responses.
+* `purgeCache` (Boolean) - If `true`, bypass and refresh the cached result.
+* `dnssecSecure` (Boolean) - If `true`, set the EDNS0 DO (DNSSEC OK) flag in the outgoing DoH query and return a `{ secure, answers }` object instead of the normal result array. The `secure` property is `true` when the upstream resolver (Cloudflare/Google) has validated the response via DNSSEC (i.e. the AD flag is set). This is useful for [RFC 7672 Section 2.2.2](https://datatracker.ietf.org/doc/html/rfc7672#section-2.2.2) DANE implementations that need to check whether an MX host's zone is DNSSEC-signed before attempting TLSA lookups.
+
+```js
+const tangerine = new Tangerine();
+
+// Check if a domain's zone is DNSSEC-signed
+const result = await tangerine.resolve('cloudflare.com', 'A', { dnssecSecure: true });
+console.log(result);
+// { secure: true, answers: [{ name: 'cloudflare.com', type: 'A', ... }] }
+
+// Non-DNSSEC zone
+const result2 = await tangerine.resolve('google.com', 'A', { dnssecSecure: true });
+console.log(result2);
+// { secure: false, answers: [{ name: 'google.com', type: 'A', ... }] }
+```
+
 ### `tangerine.resolve4(hostname[, options, abortController])`
 
 Tangerine supports a new `ecsSubnet` property in the `options` Object argument.

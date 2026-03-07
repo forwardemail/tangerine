@@ -326,6 +326,35 @@ export type AnyRecord = {
 
 export type ResolveOptions = {
   ttl?: boolean;
+  /**
+   * If true, set the EDNS0 DO (DNSSEC OK) flag in the outgoing DoH query
+   * and return a `{ secure, answers }` object instead of the normal result.
+   * The `secure` property is true when the upstream resolver has validated
+   * the response via DNSSEC (i.e. the AD flag is set).
+   */
+  dnssecSecure?: boolean;
+  /**
+   * EDNS Client Subnet (ECS) option for geolocation-aware DNS responses.
+   */
+  ecsSubnet?: string;
+  /**
+   * If true, bypass and refresh the cached result.
+   */
+  purgeCache?: boolean;
+};
+
+export type DnssecResult = {
+  /** Whether the DNS response was DNSSEC-validated (AD flag set). */
+  secure: boolean;
+  /** The DNS answer records from the response. */
+  answers: Array<{
+    name: string;
+    type: string;
+    ttl: number;
+    class: string;
+    flush: boolean;
+    data: unknown;
+  }>;
 };
 
 export type RecordWithTtl = {
@@ -647,13 +676,14 @@ declare class Tangerine extends Resolver {
 
   /**
    * Resolve DNS records of a specific type.
+   * When `options.dnssecSecure` is true, returns `DnssecResult` instead.
    */
   resolve(
     name: string,
     rrtype?: DnsRecordType,
     options?: ResolveOptions,
     abortController?: AbortController
-  ): Promise<unknown>;
+  ): Promise<unknown | DnssecResult>;
 }
 
 export default Tangerine;

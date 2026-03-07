@@ -1141,13 +1141,14 @@ class Tangerine extends dns.promises.Resolver {
 
   // <https://github.com/hildjj/dohdec/tree/main/pkg/dohdec>
 
-  async #query(name, rrtype = 'A', ecsSubnet, abortController) {
+  async #query(name, rrtype = 'A', ecsSubnet, abortController, dnssec) {
     if (!dohdec) await pWaitFor(() => Boolean(dohdec));
     debug('query', {
       name,
       nameToASCII: toASCII(name),
       rrtype,
       ecsSubnet,
+      dnssec,
       abortController
     });
     // <https://github.com/hildjj/dohdec/blob/43564118c40f2127af871bdb4d40f615409d4b9c/pkg/dohdec/lib/dnsUtils.js#L161>
@@ -1160,7 +1161,13 @@ class Tangerine extends dns.promises.Resolver {
       // mirrors dns module behavior
       name: toASCII(name),
       // <https://github.com/mafintosh/dns-packet/pull/47#issuecomment-1435818437>
-      ecsSubnet
+      ecsSubnet,
+      // When dnssec is true, set the AD flag in the query and the DO
+      // (DNSSEC OK) flag in the EDNS0 OPT record so the upstream resolver
+      // returns DNSSEC validation status via the AD flag in the response.
+      // <https://datatracker.ietf.org/doc/html/rfc3225>
+      // <https://datatracker.ietf.org/doc/html/rfc4035#section-3.2.1>
+      dnssec
     });
     try {
       // mirror the behavior as noted in built-in DNS
@@ -1824,6 +1831,12 @@ class Tangerine extends dns.promises.Resolver {
       delete options.ecsSubnet;
     }
 
+    // dnssecSecure support: set the EDNS0 DO (DNSSEC OK) flag in the
+    // outgoing DoH query so the upstream resolver returns the AD flag.
+    // NOTE: do not delete options.dnssecSecure here — it is checked
+    // after #query() to decide the return format.
+    const dnssec = Boolean(options?.dnssecSecure);
+
     const key = (
       ecsSubnet ? `${rrtype}:${ecsSubnet}:${name}` : `${rrtype}:${name}`
     ).toLowerCase();
@@ -1932,7 +1945,13 @@ class Tangerine extends dns.promises.Resolver {
 
       try {
         // setImmediate(() => this.cancel());
-        result = await this.#query(name, rrtype, ecsSubnet, abortController);
+        result = await this.#query(
+          name,
+          rrtype,
+          ecsSubnet,
+          abortController,
+          dnssec
+        );
       } finally {
         if (mustReleaseAbortController) {
           this.#releaseAbortController(abortController);
@@ -2032,6 +2051,8 @@ class Tangerine extends dns.promises.Resolver {
     // RFC 7672 Section 2.2.2: Expose DNSSEC validation status (AD flag)
     // When options.dnssecSecure is true, return an object with the answers
     // and a boolean indicating whether the response was DNSSEC-validated.
+    // The AD flag is set by the upstream DoH resolver (Cloudflare/Google)
+    // when the zone is DNSSEC-signed and validation succeeds.
     // This allows callers (e.g. mx-connect DANE) to check if the MX host's
     // zone is signed before attempting TLSA lookups.
     //

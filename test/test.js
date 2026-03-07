@@ -1541,3 +1541,95 @@ test('HTTPS and SVCB are in TYPES set', (t) => {
   t.true(Tangerine.TYPES.has('UNKNOWN_64'), 'TYPES should include UNKNOWN_64');
   t.true(Tangerine.TYPES.has('UNKNOWN_65'), 'TYPES should include UNKNOWN_65');
 });
+
+//
+// dnssecSecure tests
+// Verify that the EDNS0 DO flag is set in DoH queries when dnssecSecure
+// is true, causing the upstream resolver to return the AD flag for
+// DNSSEC-signed zones.
+//
+// NOTE: these tests require network access to DoH resolvers.
+//
+
+test('dnssecSecure returns secure=true for DNSSEC-signed zone (cloudflare.com)', async (t) => {
+  if (t.context.isBlackholed) return t.pass();
+  const tangerine = new Tangerine();
+  const result = await tangerine.resolve('cloudflare.com', 'A', {
+    dnssecSecure: true
+  });
+  t.is(typeof result, 'object', 'result should be an object');
+  t.is(typeof result.secure, 'boolean', 'result.secure should be a boolean');
+  t.true(
+    result.secure,
+    'cloudflare.com should be DNSSEC-validated (secure=true)'
+  );
+  t.true(Array.isArray(result.answers), 'result.answers should be an array');
+  t.true(result.answers.length > 0, 'result.answers should have entries');
+});
+
+test('dnssecSecure returns secure=false for non-DNSSEC zone (google.com)', async (t) => {
+  if (t.context.isBlackholed) return t.pass();
+  const tangerine = new Tangerine();
+  const result = await tangerine.resolve('google.com', 'A', {
+    dnssecSecure: true
+  });
+  t.is(typeof result, 'object', 'result should be an object');
+  t.is(typeof result.secure, 'boolean', 'result.secure should be a boolean');
+  t.false(
+    result.secure,
+    'google.com should not be DNSSEC-validated (secure=false)'
+  );
+  t.true(Array.isArray(result.answers), 'result.answers should be an array');
+  t.true(result.answers.length > 0, 'result.answers should have entries');
+});
+
+test('dnssecSecure returns secure=true for DANE test domain (wrong.havedane.net)', async (t) => {
+  if (t.context.isBlackholed) return t.pass();
+  const tangerine = new Tangerine();
+  const result = await tangerine.resolve('wrong.havedane.net', 'A', {
+    dnssecSecure: true
+  });
+  t.is(typeof result, 'object', 'result should be an object');
+  t.true(
+    result.secure,
+    'wrong.havedane.net should be DNSSEC-validated (secure=true)'
+  );
+  t.true(Array.isArray(result.answers), 'result.answers should be an array');
+  t.true(result.answers.length > 0, 'result.answers should have entries');
+});
+
+test('dnssecSecure with AAAA record type', async (t) => {
+  if (t.context.isBlackholed) return t.pass();
+  const tangerine = new Tangerine();
+  const result = await tangerine.resolve('cloudflare.com', 'AAAA', {
+    dnssecSecure: true
+  });
+  t.is(typeof result, 'object', 'result should be an object');
+  t.true(result.secure, 'cloudflare.com AAAA should be DNSSEC-validated');
+  t.true(Array.isArray(result.answers), 'result.answers should be an array');
+});
+
+test('resolve without dnssecSecure still returns normal array', async (t) => {
+  if (t.context.isBlackholed) return t.pass();
+  const tangerine = new Tangerine();
+  const result = await tangerine.resolve('cloudflare.com', 'A');
+  t.true(
+    Array.isArray(result),
+    'result should be an array without dnssecSecure'
+  );
+  t.true(result.length > 0, 'result should have entries');
+  t.is(typeof result[0], 'string', 'result entries should be IP strings');
+});
+
+test('dnssecSecure does not interfere with ecsSubnet', async (t) => {
+  if (t.context.isBlackholed) return t.pass();
+  const tangerine = new Tangerine();
+  // ecsSubnet with dnssecSecure should both work together
+  const result = await tangerine.resolve('cloudflare.com', 'A', {
+    dnssecSecure: true,
+    ecsSubnet: '0.0.0.0/0'
+  });
+  t.is(typeof result, 'object', 'result should be an object');
+  t.is(typeof result.secure, 'boolean', 'result.secure should be a boolean');
+  t.true(Array.isArray(result.answers), 'result.answers should be an array');
+});
