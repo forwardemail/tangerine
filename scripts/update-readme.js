@@ -29,9 +29,8 @@ function generateBenchmarkSection(results) {
   section += `**Last Updated:** ${new Date().toISOString().split('T')[0]}\n\n`;
 
   // Create a table showing Node.js version info
-  section += `| Node Version | Platform | Arch | Timestamp |\n`;
-  section += `|--------------|----------|------|----------|\n`;
-
+  // Collect rows first to calculate column widths for remark-compatible alignment
+  const rows = [];
   for (const version of versions) {
     const data = results[version];
     const timestamp = new Date(data.timestamp).toLocaleDateString('en-US', {
@@ -39,7 +38,18 @@ function generateBenchmarkSection(results) {
       month: 'short',
       day: 'numeric'
     });
-    section += `| ${version} | ${data.platform} | ${data.arch} | ${timestamp} |\n`;
+    rows.push([version, data.platform, data.arch, timestamp]);
+  }
+
+  const headers = ['Node Version', 'Platform', 'Arch', 'Timestamp'];
+  const colWidths = headers.map((h, i) =>
+    Math.max(h.length, ...rows.map((r) => r[i].length))
+  );
+
+  section += `| ${headers.map((h, i) => h.padEnd(colWidths[i])).join(' | ')} |\n`;
+  section += `| ${colWidths.map((w) => '-'.repeat(w)).join(' | ')} |\n`;
+  for (const row of rows) {
+    section += `| ${row.map((c, i) => c.padEnd(colWidths[i])).join(' | ')} |\n`;
   }
 
   section += `\n`;
@@ -120,7 +130,7 @@ function main() {
       readme.indexOf(START_MARKER) + START_MARKER.length
     );
     const afterMarker = readme.slice(readme.indexOf(END_MARKER));
-    readme = beforeMarker + '\n\n' + benchmarkSection + '\n\n' + afterMarker;
+    readme = beforeMarker + '\n\n' + benchmarkSection + '\n' + afterMarker;
   } else {
     console.error('❌ Markers not found in README.md');
     console.error(
