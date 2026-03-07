@@ -1838,7 +1838,9 @@ class Tangerine extends dns.promises.Resolver {
     const dnssec = Boolean(options?.dnssecSecure);
 
     const key = (
-      ecsSubnet ? `${rrtype}:${ecsSubnet}:${name}` : `${rrtype}:${name}`
+      ecsSubnet
+        ? `${rrtype}:${ecsSubnet}:${name}${dnssec ? ':dnssec' : ''}`
+        : `${rrtype}:${name}${dnssec ? ':dnssec' : ''}`
     ).toLowerCase();
 
     let result;
