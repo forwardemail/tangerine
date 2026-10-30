@@ -554,68 +554,69 @@ We have written extensive benchmarks to show that :tangerine: Tangerine is as fa
 
 #### Latest Automated Benchmark Results
 
-**Last Updated:** 2026-10-29
+**Last Updated:** 2026-10-30
 
-| Node Version | Platform | Arch | Timestamp    |
-| ------------ | -------- | ---- | ------------ |
-| v18.20.8     | linux    | x64  | Apr 9, 2026  |
-| v20.19.6     | linux    | x64  | Jan 22, 2026 |
-| v20.20.0     | linux    | x64  | Feb 25, 2026 |
-| v20.20.1     | linux    | x64  | Mar 17, 2026 |
-| v20.20.2     | linux    | x64  | Sep 24, 2026 |
-| v22.21.1     | linux    | x64  | Dec 21, 2025 |
-| v22.22.0     | linux    | x64  | Jan 23, 2026 |
-| v22.22.1     | linux    | x64  | Mar 16, 2026 |
-| v22.22.2     | linux    | x64  | Apr 28, 2026 |
-| v22.22.3     | linux    | x64  | Jun 9, 2026  |
-| v22.23.0     | linux    | x64  | Jun 26, 2026 |
-| v22.23.1     | linux    | x64  | Jul 3, 2026  |
-| v22.23.2     | linux    | x64  | Sep 30, 2026 |
-| v22.23.3     | linux    | x64  | Oct 28, 2026 |
-| v22.23.4     | linux    | x64  | Oct 29, 2026 |
-| v24.12.0     | linux    | x64  | Dec 21, 2025 |
-| v24.13.0     | linux    | x64  | Feb 19, 2026 |
-| v24.13.1     | linux    | x64  | Mar 4, 2026  |
-| v24.14.0     | linux    | x64  | Mar 27, 2026 |
-| v24.14.1     | linux    | x64  | May 15, 2026 |
-| v24.15.0     | linux    | x64  | May 28, 2026 |
-| v24.16.0     | linux    | x64  | May 27, 2026 |
-| v24.17.0     | linux    | x64  | Jun 25, 2026 |
-| v24.18.0     | linux    | x64  | Aug 11, 2026 |
-| v24.19.0     | linux    | x64  | Sep 4, 2026  |
-| v24.20.0     | linux    | x64  | Sep 5, 2026  |
-| v24.21.0     | linux    | x64  | Sep 24, 2026 |
-| v24.22.0     | linux    | x64  | Oct 22, 2026 |
-| v24.22.1     | linux    | x64  | Oct 28, 2026 |
-| v25.2.1      | linux    | x64  | Dec 21, 2025 |
-| v25.3.0      | linux    | x64  | Jan 14, 2026 |
-| v25.4.0      | linux    | x64  | Jan 20, 2026 |
-| v25.5.0      | linux    | x64  | Jan 27, 2026 |
-| v25.6.0      | linux    | x64  | Feb 4, 2026  |
-| v25.6.1      | linux    | x64  | Feb 11, 2026 |
-| v25.7.0      | linux    | x64  | Feb 25, 2026 |
-| v25.8.0      | linux    | x64  | Mar 4, 2026  |
-| v25.8.1      | linux    | x64  | Mar 13, 2026 |
-| v25.8.2      | linux    | x64  | Mar 25, 2026 |
-| v25.9.0      | linux    | x64  | May 5, 2026  |
-| v26.0.0      | linux    | x64  | May 7, 2026  |
-| v26.1.0      | linux    | x64  | May 14, 2026 |
-| v26.10.0     | linux    | x64  | Sep 23, 2026 |
-| v26.11.1     | linux    | x64  | Oct 8, 2026  |
-| v26.12.0     | linux    | x64  | Oct 21, 2026 |
-| v26.12.1     | linux    | x64  | Oct 22, 2026 |
-| v26.13.0     | linux    | x64  | Oct 29, 2026 |
-| v26.2.0      | linux    | x64  | May 21, 2026 |
-| v26.3.0      | linux    | x64  | Jun 2, 2026  |
-| v26.3.1      | linux    | x64  | Jun 19, 2026 |
-| v26.4.0      | linux    | x64  | Jun 25, 2026 |
-| v26.5.0      | linux    | x64  | Jul 9, 2026  |
-| v26.5.1      | linux    | x64  | Jul 30, 2026 |
-| v26.6.0      | linux    | x64  | Aug 4, 2026  |
-| v26.7.0      | linux    | x64  | Aug 6, 2026  |
-| v26.8.1      | linux    | x64  | Aug 27, 2026 |
-| v26.8.2      | linux    | x64  | Sep 10, 2026 |
-| v26.9.0      | linux    | x64  | Sep 17, 2026 |
+| Node Version        | Platform | Arch | Timestamp    |
+| ------------------- | -------- | ---- | ------------ |
+| v18.20.8            | linux    | x64  | Apr 9, 2026  |
+| v20.19.6            | linux    | x64  | Jan 22, 2026 |
+| v20.20.0            | linux    | x64  | Feb 25, 2026 |
+| v20.20.1            | linux    | x64  | Mar 17, 2026 |
+| v20.20.2            | linux    | x64  | Sep 24, 2026 |
+| v22.21.1            | linux    | x64  | Dec 21, 2025 |
+| v22.22.0            | linux    | x64  | Jan 23, 2026 |
+| v22.22.1            | linux    | x64  | Mar 16, 2026 |
+| v22.22.2            | linux    | x64  | Apr 28, 2026 |
+| v22.22.3            | linux    | x64  | Jun 9, 2026  |
+| v22.23.0            | linux    | x64  | Jun 26, 2026 |
+| v22.23.1            | linux    | x64  | Jul 3, 2026  |
+| v22.23.2            | linux    | x64  | Sep 30, 2026 |
+| v22.23.3            | linux    | x64  | Oct 28, 2026 |
+| v22.23.4            | linux    | x64  | Oct 30, 2026 |
+| v24.12.0            | linux    | x64  | Dec 21, 2025 |
+| v24.13.0            | linux    | x64  | Feb 19, 2026 |
+| v24.13.1            | linux    | x64  | Mar 4, 2026  |
+| v24.14.0            | linux    | x64  | Mar 27, 2026 |
+| v24.14.1            | linux    | x64  | May 15, 2026 |
+| v24.15.0            | linux    | x64  | May 28, 2026 |
+| v24.16.0            | linux    | x64  | May 27, 2026 |
+| v24.17.0            | linux    | x64  | Jun 25, 2026 |
+| v24.18.0            | linux    | x64  | Aug 11, 2026 |
+| v24.19.0            | linux    | x64  | Sep 4, 2026  |
+| v24.20.0            | linux    | x64  | Sep 5, 2026  |
+| v24.21.0            | linux    | x64  | Sep 24, 2026 |
+| v24.22.0            | linux    | x64  | Oct 22, 2026 |
+| v24.22.1            | linux    | x64  | Oct 28, 2026 |
+| v25.2.1             | linux    | x64  | Dec 21, 2025 |
+| v25.3.0             | linux    | x64  | Jan 14, 2026 |
+| v25.4.0             | linux    | x64  | Jan 20, 2026 |
+| v25.5.0             | linux    | x64  | Jan 27, 2026 |
+| v25.6.0             | linux    | x64  | Feb 4, 2026  |
+| v25.6.1             | linux    | x64  | Feb 11, 2026 |
+| v25.7.0             | linux    | x64  | Feb 25, 2026 |
+| v25.8.0             | linux    | x64  | Mar 4, 2026  |
+| v25.8.1             | linux    | x64  | Mar 13, 2026 |
+| v25.8.2             | linux    | x64  | Mar 25, 2026 |
+| v25.9.0             | linux    | x64  | May 5, 2026  |
+| v26.0.0             | linux    | x64  | May 7, 2026  |
+| v26.1.0             | linux    | x64  | May 14, 2026 |
+| v26.10.0            | linux    | x64  | Sep 23, 2026 |
+| v26.11.1            | linux    | x64  | Oct 8, 2026  |
+| v26.12.0            | linux    | x64  | Oct 21, 2026 |
+| v26.12.1            | linux    | x64  | Oct 22, 2026 |
+| v26.13.0            | linux    | x64  | Oct 29, 2026 |
+| v26.2.0             | linux    | x64  | May 21, 2026 |
+| v26.3.0             | linux    | x64  | Jun 2, 2026  |
+| v26.3.1             | linux    | x64  | Jun 19, 2026 |
+| v26.4.0             | linux    | x64  | Jun 25, 2026 |
+| v26.5.0             | linux    | x64  | Jul 9, 2026  |
+| v26.5.1             | linux    | x64  | Jul 30, 2026 |
+| v26.6.0             | linux    | x64  | Aug 4, 2026  |
+| v26.7.0             | linux    | x64  | Aug 6, 2026  |
+| v26.8.1             | linux    | x64  | Aug 27, 2026 |
+| v26.8.2             | linux    | x64  | Sep 10, 2026 |
+| v26.9.0             | linux    | x64  | Sep 17, 2026 |
+| v27.0.0-alpha.0.0.0 | linux    | x64  | Oct 30, 2026 |
 
 <details>
 <summary>Click to expand detailed benchmark results</summary>
@@ -1235,12 +1236,12 @@ Fastest without caching is: tangerine.reverse GET without caching, dns.promises.
 
 ```text
 Started: lookup
-tangerine.lookup POST with caching using Cloudflare x 1,151 ops/sec ±195.61% (89 runs sampled)
-tangerine.lookup POST without caching using Cloudflare x 118 ops/sec ±2.17% (81 runs sampled)
-tangerine.lookup GET with caching using Cloudflare x 553,843 ops/sec ±0.73% (88 runs sampled)
-tangerine.lookup GET without caching using Cloudflare x 124 ops/sec ±7.41% (87 runs sampled)
-dns.promises.lookup with caching using Cloudflare x 1,350 ops/sec ±195.98% (85 runs sampled)
-dns.promises.lookup without caching using Cloudflare x 4,793 ops/sec ±1.77% (85 runs sampled)
+tangerine.lookup POST with caching using Cloudflare x 326,097 ops/sec ±0.51% (88 runs sampled)
+tangerine.lookup POST without caching using Cloudflare x 299 ops/sec ±2.27% (80 runs sampled)
+tangerine.lookup GET with caching using Cloudflare x 312,538 ops/sec ±0.88% (89 runs sampled)
+tangerine.lookup GET without caching using Cloudflare x 195 ops/sec ±2.26% (80 runs sampled)
+dns.promises.lookup with caching using Cloudflare x 9,131,760 ops/sec ±0.47% (85 runs sampled)
+dns.promises.lookup without caching using Cloudflare x 2,306 ops/sec ±0.66% (86 runs sampled)
 Fastest without caching is: dns.promises.lookup without caching using Cloudflare
 ```
 
@@ -1248,29 +1249,29 @@ Fastest without caching is: dns.promises.lookup without caching using Cloudflare
 
 ```text
 Started: resolve
-tangerine.resolve POST with caching using Cloudflare x 2,037,421 ops/sec ±0.71% (85 runs sampled)
-tangerine.resolve POST without caching using Cloudflare x 129 ops/sec ±1.40% (84 runs sampled)
-tangerine.resolve GET with caching using Cloudflare x 1,923,030 ops/sec ±0.56% (89 runs sampled)
-tangerine.resolve GET without caching using Cloudflare x 129 ops/sec ±0.73% (87 runs sampled)
-tangerine.resolve POST with caching using Google x 1,822,379 ops/sec ±1.98% (86 runs sampled)
-tangerine.resolve POST without caching using Google x 69.74 ops/sec ±6.54% (86 runs sampled)
-tangerine.resolve GET with caching using Google x 1,829,124 ops/sec ±0.80% (88 runs sampled)
-tangerine.resolve GET without caching using Google x 76.84 ops/sec ±12.69% (76 runs sampled)
-resolver.resolve with caching using Cloudflare x 14,729,080 ops/sec ±1.20% (85 runs sampled)
-resolver.resolve without caching using Cloudflare x 104 ops/sec ±3.11% (73 runs sampled)
-Fastest without caching is: tangerine.resolve GET without caching using Cloudflare, tangerine.resolve POST without caching using Cloudflare
+tangerine.resolve POST with caching using Cloudflare x 1,077,293 ops/sec ±1.65% (88 runs sampled)
+tangerine.resolve POST without caching using Cloudflare x 247 ops/sec ±2.53% (78 runs sampled)
+tangerine.resolve GET with caching using Cloudflare x 1,085,374 ops/sec ±0.30% (90 runs sampled)
+tangerine.resolve GET without caching using Cloudflare x 274 ops/sec ±2.24% (79 runs sampled)
+tangerine.resolve POST with caching using Google x 1,071,869 ops/sec ±0.58% (89 runs sampled)
+tangerine.resolve POST without caching using Google x 372 ops/sec ±2.86% (78 runs sampled)
+tangerine.resolve GET with caching using Google x 1,062,740 ops/sec ±0.25% (90 runs sampled)
+tangerine.resolve GET without caching using Google x 373 ops/sec ±1.86% (81 runs sampled)
+resolver.resolve with caching using Cloudflare x 8,250,707 ops/sec ±0.67% (88 runs sampled)
+resolver.resolve without caching using Cloudflare x 262 ops/sec ±45.04% (58 runs sampled)
+Fastest without caching is: tangerine.resolve GET without caching using Google, tangerine.resolve POST without caching using Google, resolver.resolve without caching using Cloudflare
 ```
 
 **reverse:**
 
 ```text
 Started: reverse
-tangerine.reverse GET with caching x 620,084 ops/sec ±1.72% (87 runs sampled)
-tangerine.reverse GET without caching x 138 ops/sec ±0.62% (82 runs sampled)
-resolver.reverse with caching x 14,658,259 ops/sec ±2.32% (88 runs sampled)
-resolver.reverse without caching x 103 ops/sec ±2.87% (72 runs sampled)
-dns.promises.reverse with caching x 15,043,747 ops/sec ±0.73% (85 runs sampled)
-dns.promises.reverse without caching x 101 ops/sec ±3.35% (71 runs sampled)
+tangerine.reverse GET with caching x 336,176 ops/sec ±0.30% (88 runs sampled)
+tangerine.reverse GET without caching x 233 ops/sec ±2.99% (74 runs sampled)
+resolver.reverse with caching x 8,105,582 ops/sec ±0.69% (87 runs sampled)
+resolver.reverse without caching x 8.34 ops/sec ±200.21% (30 runs sampled)
+dns.promises.reverse with caching x 7,573,294 ops/sec ±0.93% (80 runs sampled)
+dns.promises.reverse without caching x 0.87 ops/sec ±125.58% (51 runs sampled)
 Fastest without caching is: tangerine.reverse GET without caching
 ```
 
@@ -3186,6 +3187,51 @@ resolver.reverse without caching x 162 ops/sec ±0.64% (85 runs sampled)
 dns.promises.reverse with caching x 8,366,848 ops/sec ±2.54% (86 runs sampled)
 dns.promises.reverse without caching x 5.00 ops/sec ±189.87% (70 runs sampled)
 Fastest without caching is: resolver.reverse without caching
+```
+
+##### Node.js v27.0.0-alpha.0.0.0
+
+**lookup:**
+
+```text
+Started: lookup
+tangerine.lookup POST with caching using Cloudflare x 1,529 ops/sec ±195.20% (83 runs sampled)
+tangerine.lookup POST without caching using Cloudflare x 118 ops/sec ±5.70% (82 runs sampled)
+tangerine.lookup GET with caching using Cloudflare x 358,398 ops/sec ±2.60% (87 runs sampled)
+tangerine.lookup GET without caching using Cloudflare x 128 ops/sec ±1.07% (86 runs sampled)
+dns.promises.lookup with caching using Cloudflare x 12,776,205 ops/sec ±2.42% (87 runs sampled)
+dns.promises.lookup without caching using Cloudflare x 2,323 ops/sec ±0.71% (85 runs sampled)
+Fastest without caching is: dns.promises.lookup without caching using Cloudflare
+```
+
+**resolve:**
+
+```text
+Started: resolve
+tangerine.resolve POST with caching using Cloudflare x 1,279,657 ops/sec ±1.67% (90 runs sampled)
+tangerine.resolve POST without caching using Cloudflare x 125 ops/sec ±7.62% (87 runs sampled)
+tangerine.resolve GET with caching using Cloudflare x 1,253,170 ops/sec ±2.95% (88 runs sampled)
+tangerine.resolve GET without caching using Cloudflare x 133 ops/sec ±0.73% (84 runs sampled)
+tangerine.resolve POST with caching using Google x 297 ops/sec ±195.95% (90 runs sampled)
+tangerine.resolve POST without caching using Google x 66.25 ops/sec ±1.43% (79 runs sampled)
+tangerine.resolve GET with caching using Google x 1,281,679 ops/sec ±0.36% (89 runs sampled)
+tangerine.resolve GET without caching using Google x 60.34 ops/sec ±6.78% (75 runs sampled)
+resolver.resolve with caching using Cloudflare x 10,898,564 ops/sec ±0.54% (90 runs sampled)
+resolver.resolve without caching using Cloudflare x 3.58 ops/sec ±217.30% (11 runs sampled)
+Fastest without caching is: tangerine.resolve GET without caching using Cloudflare
+```
+
+**reverse:**
+
+```text
+Started: reverse
+tangerine.reverse GET with caching x 381,547 ops/sec ±0.59% (90 runs sampled)
+tangerine.reverse GET without caching x 120 ops/sec ±14.10% (87 runs sampled)
+resolver.reverse with caching x 4.20 ops/sec ±137.76% (84 runs sampled)
+resolver.reverse without caching x 0.10 ops/sec ±0.01% (5 runs sampled)
+dns.promises.reverse with caching x 10,267,000 ops/sec ±2.42% (83 runs sampled)
+dns.promises.reverse without caching x 2.17 ops/sec ±183.35% (86 runs sampled)
+Fastest without caching is: tangerine.reverse GET without caching
 ```
 
 </details>
