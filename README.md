@@ -554,7 +554,7 @@ We have written extensive benchmarks to show that :tangerine: Tangerine is as fa
 
 #### Latest Automated Benchmark Results
 
-**Last Updated:** 2026-11-08
+**Last Updated:** 2026-11-09
 
 | Node Version        | Platform | Arch | Timestamp    |
 | ------------------- | -------- | ---- | ------------ |
@@ -572,7 +572,7 @@ We have written extensive benchmarks to show that :tangerine: Tangerine is as fa
 | v22.23.1            | linux    | x64  | Jul 3, 2026  |
 | v22.23.2            | linux    | x64  | Sep 30, 2026 |
 | v22.23.3            | linux    | x64  | Oct 28, 2026 |
-| v22.23.4            | linux    | x64  | Nov 8, 2026  |
+| v22.23.4            | linux    | x64  | Nov 9, 2026  |
 | v24.12.0            | linux    | x64  | Dec 21, 2025 |
 | v24.13.0            | linux    | x64  | Feb 19, 2026 |
 | v24.13.1            | linux    | x64  | Mar 4, 2026  |
@@ -1237,12 +1237,12 @@ Fastest without caching is: tangerine.reverse GET without caching, dns.promises.
 
 ```text
 Started: lookup
-tangerine.lookup POST with caching using Cloudflare x 1,657 ops/sec ±195.24% (90 runs sampled)
-tangerine.lookup POST without caching using Cloudflare x 135 ops/sec ±1.21% (85 runs sampled)
-tangerine.lookup GET with caching using Cloudflare x 387,896 ops/sec ±0.22% (90 runs sampled)
-tangerine.lookup GET without caching using Cloudflare x 137 ops/sec ±0.94% (82 runs sampled)
-dns.promises.lookup with caching using Cloudflare x 1,305 ops/sec ±195.98% (87 runs sampled)
-dns.promises.lookup without caching using Cloudflare x 3,113 ops/sec ±0.71% (85 runs sampled)
+tangerine.lookup POST with caching using Cloudflare x 593,655 ops/sec ±2.49% (87 runs sampled)
+tangerine.lookup POST without caching using Cloudflare x 119 ops/sec ±13.41% (87 runs sampled)
+tangerine.lookup GET with caching using Cloudflare x 580,278 ops/sec ±0.38% (90 runs sampled)
+tangerine.lookup GET without caching using Cloudflare x 114 ops/sec ±1.30% (79 runs sampled)
+dns.promises.lookup with caching using Cloudflare x 18,184,798 ops/sec ±0.68% (86 runs sampled)
+dns.promises.lookup without caching using Cloudflare x 4,896 ops/sec ±0.73% (86 runs sampled)
 Fastest without caching is: dns.promises.lookup without caching using Cloudflare
 ```
 
@@ -1250,29 +1250,29 @@ Fastest without caching is: dns.promises.lookup without caching using Cloudflare
 
 ```text
 Started: resolve
-tangerine.resolve POST with caching using Cloudflare x 1,534,129 ops/sec ±0.44% (90 runs sampled)
-tangerine.resolve POST without caching using Cloudflare x 142 ops/sec ±0.75% (84 runs sampled)
-tangerine.resolve GET with caching using Cloudflare x 1,452,821 ops/sec ±0.34% (91 runs sampled)
-tangerine.resolve GET without caching using Cloudflare x 146 ops/sec ±0.46% (87 runs sampled)
-tangerine.resolve POST with caching using Google x 1,485,508 ops/sec ±0.17% (91 runs sampled)
-tangerine.resolve POST without caching using Google x 126 ops/sec ±0.31% (86 runs sampled)
-tangerine.resolve GET with caching using Google x 1,474,310 ops/sec ±0.28% (90 runs sampled)
-tangerine.resolve GET without caching using Google x 129 ops/sec ±0.18% (87 runs sampled)
-resolver.resolve with caching using Cloudflare x 9,243,134 ops/sec ±0.49% (89 runs sampled)
-resolver.resolve without caching using Cloudflare x 118 ops/sec ±2.76% (66 runs sampled)
-Fastest without caching is: tangerine.resolve GET without caching using Cloudflare
+tangerine.resolve POST with caching using Cloudflare x 2,212,502 ops/sec ±1.74% (88 runs sampled)
+tangerine.resolve POST without caching using Cloudflare x 126 ops/sec ±0.62% (86 runs sampled)
+tangerine.resolve GET with caching using Cloudflare x 2,059,592 ops/sec ±1.46% (91 runs sampled)
+tangerine.resolve GET without caching using Cloudflare x 122 ops/sec ±1.34% (83 runs sampled)
+tangerine.resolve POST with caching using Google x 1,657 ops/sec ±195.84% (87 runs sampled)
+tangerine.resolve POST without caching using Google x 67.99 ops/sec ±2.05% (82 runs sampled)
+tangerine.resolve GET with caching using Google x 2,054,237 ops/sec ±0.56% (90 runs sampled)
+tangerine.resolve GET without caching using Google x 77.24 ops/sec ±2.75% (93 runs sampled)
+resolver.resolve with caching using Cloudflare x 15,161,901 ops/sec ±0.79% (81 runs sampled)
+resolver.resolve without caching using Cloudflare x 98.83 ops/sec ±2.32% (70 runs sampled)
+Fastest without caching is: tangerine.resolve POST without caching using Cloudflare
 ```
 
 **reverse:**
 
 ```text
 Started: reverse
-tangerine.reverse GET with caching x 431,169 ops/sec ±0.47% (90 runs sampled)
-tangerine.reverse GET without caching x 141 ops/sec ±0.54% (84 runs sampled)
-resolver.reverse with caching x 9,448,709 ops/sec ±0.53% (89 runs sampled)
-resolver.reverse without caching x 128 ops/sec ±2.50% (77 runs sampled)
-dns.promises.reverse with caching x 9,414,532 ops/sec ±0.53% (90 runs sampled)
-dns.promises.reverse without caching x 127 ops/sec ±2.54% (70 runs sampled)
+tangerine.reverse GET with caching x 623,257 ops/sec ±1.03% (89 runs sampled)
+tangerine.reverse GET without caching x 132 ops/sec ±1.37% (85 runs sampled)
+resolver.reverse with caching x 15,739,829 ops/sec ±1.84% (89 runs sampled)
+resolver.reverse without caching x 100 ops/sec ±2.79% (63 runs sampled)
+dns.promises.reverse with caching x 15,489,216 ops/sec ±1.80% (87 runs sampled)
+dns.promises.reverse without caching x 98.85 ops/sec ±2.76% (69 runs sampled)
 Fastest without caching is: tangerine.reverse GET without caching
 ```
 
