@@ -351,7 +351,7 @@ class Tangerine extends dns.promises.Resolver {
   // whether a DNS answer is one of a server that could not answer
   // (the response code is the low 4 bits of its 4th byte)
   static isNextServerAnswer(answer) {
-    return answer.length >= 4 && this.NEXT_SERVER_RCODES.has(answer[3] & 0x0f);
+    return answer.length >= 4 && this.NEXT_SERVER_RCODES.has(answer[3] % 16);
   }
 
   static RETRY_ERROR_CODES = new Set([

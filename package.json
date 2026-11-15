@@ -53,6 +53,7 @@
     "request": "^2.88.2",
     "sort-keys": "4.2.0",
     "superagent": "^9.0.2",
+    "typescript": "^5.9.3",
     "undici": "^6.19.5",
     "xo": "^0.58.0"
   },

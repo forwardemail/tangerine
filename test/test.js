@@ -84,7 +84,7 @@ function createAResponseBuffer(name, address, rcode = 0) {
   return packet.encode({
     id: 1,
     type: 'response',
-    flags: 384 | rcode,
+    flags: 384 + rcode,
     questions: [{ name, type: 'A', class: 'IN' }],
     answers: rcode
       ? []
