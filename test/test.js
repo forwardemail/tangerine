@@ -79,13 +79,16 @@ test('instance', (t) => {
   t.false(tangerine.options.parallelResolution);
 });
 
-function createAResponseBuffer(name, address) {
+// (`rcode`: a DNS response code other than NOERROR, e.g. 2 for SERVFAIL)
+function createAResponseBuffer(name, address, rcode = 0) {
   return packet.encode({
     id: 1,
     type: 'response',
-    flags: 384,
+    flags: 384 | rcode,
     questions: [{ name, type: 'A', class: 'IN' }],
-    answers: [{ name, type: 'A', ttl: 300, class: 'IN', data: address }],
+    answers: rcode
+      ? []
+      : [{ name, type: 'A', ttl: 300, class: 'IN', data: address }],
     authorities: [],
     additionals: []
   });
@@ -118,10 +121,17 @@ function createMockRequest(name, serverMap, calls) {
       else options.signal?.addEventListener('abort', onAbort, { once: true });
     });
 
+    // (a request that failed, e.g. ECONNREFUSED)
+    if (behavior.code) {
+      const err = new Error(behavior.code);
+      err.code = behavior.code;
+      throw err;
+    }
+
     return {
-      statusCode: 200,
+      statusCode: behavior.statusCode || 200,
       headers: {},
-      body: createAResponseBuffer(name, behavior.address)
+      body: createAResponseBuffer(name, behavior.address, behavior.rcode)
     };
   };
 }
@@ -184,6 +194,198 @@ test('resolve4 supports parallel server resolution', async (t) => {
   t.deepEqual(result, ['8.8.8.8']);
   t.true(calls.includes('1.1.1.1'));
   t.true(calls.includes('8.8.8.8'));
+});
+
+test('resolve4 retries and then moves on to the next server when a server times out', async (t) => {
+  const calls = [];
+  const host = 'example.com';
+  const tangerine = new Tangerine(
+    {
+      cache: false,
+      timeout: 50,
+      tries: 2,
+      servers: ['1.1.1.1', '8.8.8.8']
+    },
+    createMockRequest(
+      host,
+      {
+        '1.1.1.1': { delay: 1000, address: '1.1.1.1' },
+        '8.8.8.8': { delay: 1, address: '8.8.8.8' }
+      },
+      calls
+    )
+  );
+
+  const result = await tangerine.resolve4(host);
+  t.deepEqual(result, ['8.8.8.8']);
+  t.deepEqual(calls, ['1.1.1.1', '1.1.1.1', '8.8.8.8']);
+});
+
+test('resolve4 rejects with ETIMEOUT when every server times out', async (t) => {
+  const calls = [];
+  const host = 'example.com';
+  const tangerine = new Tangerine(
+    {
+      cache: false,
+      timeout: 20,
+      tries: 2,
+      servers: ['1.1.1.1', '8.8.8.8']
+    },
+    createMockRequest(
+      host,
+      {
+        '1.1.1.1': { delay: 1000, address: '1.1.1.1' },
+        '8.8.8.8': { delay: 1000, address: '8.8.8.8' }
+      },
+      calls
+    )
+  );
+
+  const err = await t.throwsAsync(tangerine.resolve4(host));
+  t.is(err.code, 'ETIMEOUT');
+  t.deepEqual(calls, ['1.1.1.1', '1.1.1.1', '8.8.8.8', '8.8.8.8']);
+});
+
+test('resolve4 stops asking servers once the lookup is cancelled', async (t) => {
+  const calls = [];
+  const host = 'example.com';
+  const request = createMockRequest(
+    host,
+    {
+      '1.1.1.1': { delay: 1000, address: '1.1.1.1' },
+      '8.8.8.8': { delay: 1, address: '8.8.8.8' }
+    },
+    calls
+  );
+  const tangerine = new Tangerine(
+    {
+      cache: false,
+      timeout: 1000,
+      tries: 2,
+      servers: ['1.1.1.1', '8.8.8.8']
+    },
+    (url, options) => {
+      // (cancelled while the first server is asked)
+      setTimeout(() => tangerine.cancel(), 20);
+      return request(url, options);
+    }
+  );
+
+  const err = await t.throwsAsync(tangerine.resolve4(host));
+  t.is(err.code, 'ECANCELLED');
+  t.deepEqual(calls, ['1.1.1.1']);
+});
+
+for (const [description, behavior] of [
+  ['rate limited (HTTP 429)', { statusCode: 429 }],
+  ['unavailable (HTTP 503)', { statusCode: 503 }],
+  ['refusing connections', { code: 'ECONNREFUSED' }],
+  ['unreachable', { code: 'ENETUNREACH' }]
+]) {
+  test(`resolve4 asks the next server at once when a server is ${description}`, async (t) => {
+    const calls = [];
+    const host = 'example.com';
+    const tangerine = new Tangerine(
+      {
+        cache: false,
+        timeout: 500,
+        tries: 2,
+        servers: ['1.1.1.1', '8.8.8.8']
+      },
+      createMockRequest(
+        host,
+        {
+          '1.1.1.1': { delay: 1, address: '1.1.1.1', ...behavior },
+          '8.8.8.8': { delay: 1, address: '8.8.8.8' }
+        },
+        calls
+      )
+    );
+
+    const result = await tangerine.resolve4(host);
+    t.deepEqual(result, ['8.8.8.8']);
+    t.deepEqual(calls, ['1.1.1.1', '8.8.8.8']);
+  });
+}
+
+for (const [rcodeName, rcode] of [
+  ['SERVFAIL', 2],
+  ['REFUSED', 5]
+]) {
+  test(`resolve4 asks the next server when a server answers ${rcodeName}`, async (t) => {
+    const calls = [];
+    const host = 'example.com';
+    const tangerine = new Tangerine(
+      {
+        cache: false,
+        timeout: 500,
+        tries: 2,
+        servers: ['1.1.1.1', '8.8.8.8']
+      },
+      createMockRequest(
+        host,
+        {
+          '1.1.1.1': { delay: 1, address: '1.1.1.1', rcode },
+          '8.8.8.8': { delay: 1, address: '8.8.8.8' }
+        },
+        calls
+      )
+    );
+
+    const result = await tangerine.resolve4(host);
+    t.deepEqual(result, ['8.8.8.8']);
+    t.deepEqual(calls, ['1.1.1.1', '8.8.8.8']);
+  });
+
+  test(`resolve4 rejects with E${rcodeName} when every server answers ${rcodeName}`, async (t) => {
+    const calls = [];
+    const host = 'example.com';
+    const tangerine = new Tangerine(
+      {
+        cache: false,
+        timeout: 500,
+        tries: 2,
+        servers: ['1.1.1.1', '8.8.8.8']
+      },
+      createMockRequest(
+        host,
+        {
+          '1.1.1.1': { delay: 1, address: '1.1.1.1', rcode },
+          '8.8.8.8': { delay: 1, address: '8.8.8.8', rcode }
+        },
+        calls
+      )
+    );
+
+    const err = await t.throwsAsync(tangerine.resolve4(host));
+    t.is(err.code, `E${rcodeName}`);
+    t.deepEqual(calls, ['1.1.1.1', '8.8.8.8']);
+  });
+}
+
+test('resolve4 with parallelResolution does not use a SERVFAIL answer when another server answers', async (t) => {
+  const calls = [];
+  const host = 'example.com';
+  const tangerine = new Tangerine(
+    {
+      cache: false,
+      timeout: 500,
+      tries: 1,
+      parallelResolution: true,
+      servers: ['1.1.1.1', '8.8.8.8']
+    },
+    createMockRequest(
+      host,
+      {
+        '1.1.1.1': { delay: 1, address: '1.1.1.1', rcode: 2 },
+        '8.8.8.8': { delay: 30, address: '8.8.8.8' }
+      },
+      calls
+    )
+  );
+
+  const result = await tangerine.resolve4(host);
+  t.deepEqual(result, ['8.8.8.8']);
 });
 
 // tangerine.cancel()

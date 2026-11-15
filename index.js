@@ -322,6 +322,38 @@ class Tangerine extends dns.promises.Resolver {
     408, 413, 429, 500, 502, 503, 504, 521, 522, 524
   ]);
 
+  //
+  // a server that answers with one of these is not asked again: the next one
+  // is asked at once (it limits or cannot take requests right now, or cannot
+  // be reached, so asking it again only adds to it or waits for nothing)
+  //
+  static NEXT_SERVER_STATUS_CODES = new Set([429, 503]);
+
+  static NEXT_SERVER_ERROR_CODES = new Set(['ECONNREFUSED', 'ENETUNREACH']);
+
+  //
+  // a DNS answer with one of these response codes is not used while another
+  // server may answer: the next one is asked, as c-ares does (unless
+  // ARES_FLAG_NOCHECKRESP), and it is only used when no server answers
+  // otherwise (SERVFAIL and REFUSED)
+  //
+  static NEXT_SERVER_RCODES = new Set([2, 5]);
+
+  // whether the next server is asked at once after this error
+  static isNextServerError(err) {
+    return (
+      err.code === 'ENEXTSERVER' ||
+      this.NEXT_SERVER_STATUS_CODES.has(err.statusCode) ||
+      this.NEXT_SERVER_ERROR_CODES.has(err.code)
+    );
+  }
+
+  // whether a DNS answer is one of a server that could not answer
+  // (the response code is the low 4 bits of its 4th byte)
+  static isNextServerAnswer(answer) {
+    return answer.length >= 4 && this.NEXT_SERVER_RCODES.has(answer[3] & 0x0f);
+  }
+
   static RETRY_ERROR_CODES = new Set([
     'ETIMEOUT',
     'ETIMEDOUT',
@@ -1173,8 +1205,24 @@ class Tangerine extends dns.promises.Resolver {
       // mirror the behavior as noted in built-in DNS
       // <https://github.com/nodejs/node/issues/33353#issuecomment-627259827>
       let buffer;
+      // (the error of the last server asked in turn, see below)
+      let lastServerError;
+      // (the first answer of a server that could not answer, e.g. SERVFAIL,
+      //  used when no other server answers, see `NEXT_SERVER_RCODES`)
+      let failedAnswer;
       const errors = [];
       const servers = [...this.options.servers];
+
+      // a server's answer, or (for one that could not answer, e.g. SERVFAIL)
+      // an error, so the next server is asked, see `NEXT_SERVER_RCODES`
+      const readAnswer = async (body) => {
+        const answer = await parseBody(body);
+        if (!this.constructor.isNextServerAnswer(answer)) return answer;
+        failedAnswer ||= answer;
+        const err = new Error('Server could not answer');
+        err.code = 'ENEXTSERVER';
+        throw err;
+      };
 
       const parseBody = async (body) => {
         // <https://sindresorhus.com/blog/goodbye-nodejs-buffer>
@@ -1187,16 +1235,38 @@ class Tangerine extends dns.promises.Resolver {
         throw err;
       };
 
-      const getRequestAbortController = (parallelAbortController) => {
-        if (!parallelAbortController)
-          return {
-            requestAbortController: abortController,
-            cleanupAbortController() {}
-          };
+      //
+      // each request gets its own abort controller, so that its timeout only
+      // aborts that request (the lookup then retries or moves on to the next
+      // server), while aborting the lookup (or the parallel lookups once one
+      // answered) aborts the request too
+      //
+      // the code of a lookup no server answered: ETIMEOUT when it timed out
+      // (as a whole, or its last server), else ECANCELLED (it was aborted)
+      const getNoAnswerCode = () =>
+        abortController?.signal?.reason === 'ETIMEOUT' ||
+        (!abortController?.signal?.aborted &&
+          lastServerError?.code === dns.TIMEOUT)
+          ? dns.TIMEOUT
+          : dns.CANCELLED;
 
+      // a request's error, as ETIMEOUT when only it was aborted for taking
+      // too long (it is then retried, and then the next server is asked)
+      const getRequestError = (err, requestAbortController) => {
+        if (requestAbortController.signal.reason !== 'ETIMEOUT') return err;
+        const timeoutError = this.constructor.createError(
+          name,
+          rrtype,
+          dns.TIMEOUT
+        );
+        timeoutError.error = err;
+        return timeoutError;
+      };
+
+      const getRequestAbortController = (parallelAbortController) => {
         const requestAbortController = new AbortController();
         const parentSignal = abortController?.signal;
-        const parallelSignal = parallelAbortController.signal;
+        const parallelSignal = parallelAbortController?.signal;
         const onAbort = () => {
           if (!requestAbortController.signal.aborted)
             requestAbortController.abort(parentSignal.reason);
@@ -1211,8 +1281,8 @@ class Tangerine extends dns.promises.Resolver {
         else if (parentSignal)
           parentSignal.addEventListener('abort', onAbort, { once: true });
 
-        if (parallelSignal.aborted) onParallelAbort();
-        else
+        if (parallelSignal?.aborted) onParallelAbort();
+        else if (parallelSignal)
           parallelSignal.addEventListener('abort', onParallelAbort, {
             once: true
           });
@@ -1221,7 +1291,7 @@ class Tangerine extends dns.promises.Resolver {
           requestAbortController,
           cleanupAbortController() {
             parentSignal?.removeEventListener('abort', onAbort);
-            parallelSignal.removeEventListener('abort', onParallelAbort);
+            parallelSignal?.removeEventListener('abort', onParallelAbort);
           }
         };
       };
@@ -1272,7 +1342,7 @@ class Tangerine extends dns.promises.Resolver {
               debug('response', { statusCode, headers });
 
               if (body && statusCode >= 200 && statusCode < 300)
-                return parseBody(body);
+                return readAnswer(body);
 
               // <https://github.com/nodejs/undici/issues/3353>
               if (
@@ -1294,8 +1364,13 @@ class Tangerine extends dns.promises.Resolver {
               err.headers = headers;
               throw err;
             }
-          } catch (err) {
-            debug(err);
+          } catch (_err) {
+            debug(_err);
+
+            // the lookup was aborted (e.g. cancelled), so no other request is made
+            if (abortController?.signal?.aborted) throw _err;
+
+            const err = getRequestError(_err, requestAbortController);
             lastError = err;
 
             //
@@ -1306,6 +1381,9 @@ class Tangerine extends dns.promises.Resolver {
             throwOnNotFound(err);
 
             if (err.status >= 429) ipErrors.push(err);
+
+            // the next server is asked at once
+            if (this.constructor.isNextServerError(err)) break;
 
             // break out of the loop if status code was not retryable
             if (
@@ -1336,8 +1414,11 @@ class Tangerine extends dns.promises.Resolver {
             )
           );
         } catch (err) {
-          if (errors.length > 0) throw this.constructor.combineErrors(errors);
-          throw err;
+          // (unless a server could not answer, see `buffer ||= failedAnswer`)
+          if (!failedAnswer)
+            throw errors.length > 0
+              ? this.constructor.combineErrors(errors)
+              : err;
         } finally {
           if (!parallelAbortController.signal.aborted)
             parallelAbortController.abort('CANCELLED');
@@ -1352,20 +1433,19 @@ class Tangerine extends dns.promises.Resolver {
           } catch (err) {
             throwOnNotFound(err);
             debug(err);
+            lastServerError = err;
           }
         }
       }
 
+      // (no server answered otherwise, so the answer of one that could not)
+      buffer ||= failedAnswer;
+
       if (!buffer) {
         if (errors.length > 0) throw this.constructor.combineErrors(errors);
         // if no errors and no response
-        // that must indicate that it was aborted
-        // Check if this was a timeout abort (reason will be 'ETIMEOUT')
-        const abortCode =
-          abortController?.signal?.reason === 'ETIMEOUT'
-            ? dns.TIMEOUT
-            : dns.CANCELLED;
-        throw this.constructor.createError(name, rrtype, abortCode);
+        // that must indicate that it timed out or was aborted
+        throw this.constructor.createError(name, rrtype, getNoAnswerCode());
       }
 
       // without logging an error here, one might not know
